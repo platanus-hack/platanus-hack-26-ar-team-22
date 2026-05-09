@@ -326,6 +326,7 @@ async def _process_messages(
             session,
             trace_id=trace_id,
             org_id=org_id,
+            user_id=user_id,
             request_model=parsed.model,
             parsed=parsed,
             hits=hits,
