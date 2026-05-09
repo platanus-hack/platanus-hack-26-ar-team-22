@@ -29,10 +29,12 @@ export const authConfig = {
     // Por ahora solo decide si la ruta requiere login. La resolución de org
     // (fase 2) se conecta acá vía el callback `signIn`.
     authorized({ auth, request }) {
-      const isAdminPath =
-        request.nextUrl.pathname.startsWith("/admin") ||
-        request.nextUrl.pathname.startsWith("/api/admin");
-      if (!isAdminPath) return true;
+      const path = request.nextUrl.pathname;
+      // /admin/login es público — sino el redirect a login se redirige
+      // a sí mismo (ERR_TOO_MANY_REDIRECTS).
+      const isPublicAdmin = path === "/admin/login" || path.startsWith("/admin/login/");
+      const isAdminPath = path.startsWith("/admin") || path.startsWith("/api/admin");
+      if (!isAdminPath || isPublicAdmin) return true;
       return !!auth?.user;
     },
   },

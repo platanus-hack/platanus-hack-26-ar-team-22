@@ -25,10 +25,13 @@ export default auth((request) => {
   const { pathname, searchParams } = request.nextUrl;
   const isAdminPath = pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
   const isApi = pathname.startsWith("/api/");
+  // /admin/login es público — sino el redirect a login se redirige a sí mismo
+  // (ERR_TOO_MANY_REDIRECTS).
+  const isPublicAdmin = pathname === AUTH_LOGIN || pathname.startsWith("/admin/login/");
 
   // ----- Modo "Google configurado" -----
   if (useGoogleAuth) {
-    if (!isAdminPath) return NextResponse.next();
+    if (!isAdminPath || isPublicAdmin) return NextResponse.next();
     if (request.auth) return NextResponse.next();
     if (isApi) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     const login = request.nextUrl.clone();
