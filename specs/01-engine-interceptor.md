@@ -4,7 +4,7 @@
 
 > **Stack de implementación**: **Python 3.12 + FastAPI**. Vive en `interceptor/` y está deployado en Railway. Comparte la misma Postgres que `web/` vía DSN; **no** ejecuta migraciones (la fuente de verdad del schema es `web/prisma/`). Las tasks T1–T9 abajo describen comportamiento esperado y son agnósticas del stack — el dev del interceptor adapta los términos TS al ecosistema Python (FastAPI route en lugar de Next Route Handler, asyncpg/SQLAlchemy en lugar de Prisma, pytest en lugar de vitest, uv/poetry en lugar de pnpm).
 >
-> **Estado actual (v0.2)**: Layer 1 (regex) + Layer 3 (Haiku judge) implementadas con acciones BLOCK y LOG. REDACT, WARN, Layer 2 (pattern) y atribución por dev pendientes — ver `interceptor/README.md` para el roadmap de versiones.
+> **Estado actual (v0.3)**: Layer 1 (regex) + Layer 3 (Haiku judge) implementadas con acciones BLOCK y LOG. **Atribución por dev live** vía path-based token (`POST /cli/{token}/v1/messages`) — el CLI compone `ANTHROPIC_BASE_URL=<proxy>/cli/<token>` en `tranquera setup`. REDACT, WARN y Layer 2 (pattern) pendientes — ver `interceptor/README.md` para el roadmap de versiones.
 
 ---
 

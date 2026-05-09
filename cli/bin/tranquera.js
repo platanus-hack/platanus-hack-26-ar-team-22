@@ -229,6 +229,14 @@ async function performDeviceFlow() {
   };
 }
 
+// Compose the URL Claude Code will hit. The token rides in the path because
+// Claude Code respects ANTHROPIC_BASE_URL but won't let us inject headers —
+// so this is how the interceptor knows which dev fired each prompt.
+function composeProxyBaseUrl(proxyUrl, token) {
+  const base = proxyUrl.replace(/\/+$/, "");
+  return `${base}/cli/${token}`;
+}
+
 // -------------------------------------------------------------
 // Commands
 // -------------------------------------------------------------
@@ -267,10 +275,13 @@ async function cmdSetup() {
   // Configurar el rc.
   const shell = detectShellConfig();
   if (!shell) {
+    const baseUrl = composeProxyBaseUrl(session.proxyUrl, session.token);
     console.error(c("red", "✗ no reconocí tu shell."));
-    console.error(`  agregá manualmente: export ANTHROPIC_BASE_URL="${session.proxyUrl}"`);
+    console.error(`  agregá manualmente: export ANTHROPIC_BASE_URL="${baseUrl}"`);
     process.exit(1);
   }
+
+  const baseUrlForClaude = composeProxyBaseUrl(session.proxyUrl, session.token);
 
   console.log("");
   console.log(`  ${c("bold", "▎ tranquera · setup")}`);
@@ -280,12 +291,12 @@ async function cmdSetup() {
   console.log(`  └─ member  ${session.member.email} · org=${session.member.org.id}`);
   console.log("");
 
-  const block = `${MARKER}\n${shell.exportLine(session.proxyUrl)}`;
+  const block = `${MARKER}\n${shell.exportLine(baseUrlForClaude)}`;
   const wrote = appendIfMissing(shell.rcPath, block);
   if (wrote) {
     console.log(`  ${c("green", "·")} agregué la export a ${shell.rcPath}`);
   } else {
-    console.log(`  ${c("dim", "·")} ya estaba configurado en ${shell.rcPath}`);
+    console.log(`  ${c("dim", "·")} ya estaba configurado en ${shell.rcPath} (si rotaste el token, corré ${c("bold", "npx tranquera login")} y editá la export a mano)`);
   }
 
   process.stdout.write("  · verificando proxy… ");

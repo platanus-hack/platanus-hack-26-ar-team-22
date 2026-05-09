@@ -13,7 +13,7 @@ npx tranquera setup
 Hace todo de una:
 1. Si no estás logueado, abre el browser para que te autentiques con Google.
 2. Te asocia a la org en la que tu admin te invitó.
-3. Agrega `export ANTHROPIC_BASE_URL="…"` a tu shell rc (`~/.zshrc`, `~/.bashrc`, `~/.bash_profile` o `~/.config/fish/config.fish`).
+3. Agrega `export ANTHROPIC_BASE_URL="<proxy>/cli/<token>"` a tu shell rc (`~/.zshrc`, `~/.bashrc`, `~/.bash_profile` o `~/.config/fish/config.fish`). El token va en el path porque Claude Code no permite inyectar headers — así el interceptor sabe a qué dev atribuir cada prompt.
 4. Pinguea el proxy para confirmar que responde.
 
 Reabrís la terminal (o `source` del rc) y usás `claude` igual que siempre.
@@ -48,14 +48,17 @@ Para sacar la export del rc de raíz: borrá las dos líneas que el CLI agregó 
 
 ## ¿Qué viaja al proxy?
 
-El CLI **no toca** lo que Claude Code manda — solo redirige el host. Claude Code envía sus headers normales (`x-api-key` o `Authorization`) y el body intacto. El proxy:
+El CLI **no toca** lo que Claude Code manda — solo redirige el host (con tu token en el path). Claude Code envía sus headers normales (`x-api-key` o `Authorization`) y el body intacto. El proxy:
 
-1. Lee las reglas activas de tu org.
-2. Corre la cascada **Regex → Haiku judge**.
-3. Si todo OK, reenvía a `api.anthropic.com` y devuelve la respuesta tal cual.
-4. Si una regla matchea con `BLOCK`, devuelve un `Message` sintético explicando qué pasó.
+1. Extrae tu token del path (`/cli/<token>/...`), lo hashea y resuelve a qué `member` perteneces.
+2. Lee las reglas activas de tu org.
+3. Corre la cascada **Regex → Haiku judge**.
+4. Si todo OK, reenvía a `api.anthropic.com` y devuelve la respuesta tal cual.
+5. Si una regla matchea con `BLOCK`, devuelve un `Message` sintético explicando qué pasó.
 
-Cada request queda **auditada en el back-office** de tu admin, atribuida a tu cuenta.
+Cada request queda **auditada en el back-office** de tu admin, atribuida a tu cuenta (`interactions.user_id = members.id`).
+
+> Si tu admin **revoca tu token** desde `/admin/team`, la próxima request va a fallar con `401 unknown or revoked tranquera token`. Corré `npx tranquera login` para generar uno nuevo y editá la export del rc con la URL nueva.
 
 ## Requisitos
 

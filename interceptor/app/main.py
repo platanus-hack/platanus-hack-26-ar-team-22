@@ -13,6 +13,7 @@ import logging
 import time
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
+from uuid import UUID
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
@@ -23,6 +24,7 @@ from ulid import ULID
 
 from .block_response import synthesize_block_message, synthesize_block_sse
 from .cascade import PolicyHit, run_regex_layer
+from .cli_auth import CliCaller, resolve_cli_token
 from .config import settings
 from .db import get_session
 from .enums import Action, PolicyLayer, winning_action
@@ -55,7 +57,7 @@ async def lifespan(_app: FastAPI):
         await close_client()
 
 
-app = FastAPI(title="Tranquera interceptor", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Tranquera interceptor", version="0.3.0", lifespan=lifespan)
 
 
 @app.get("/health")
@@ -114,6 +116,7 @@ async def _persist_interaction(
     *,
     trace_id: str,
     org_id: str,
+    user_id: UUID | None,
     request_model: str,
     parsed: MessagesRequest,
     hits: list[PolicyHit],
@@ -126,6 +129,7 @@ async def _persist_interaction(
     interaction = Interaction(
         trace_id=trace_id,
         org_id=org_id,
+        user_id=user_id,
         request_model=request_model,
         prompt=redact_for_storage(_flatten_prompt(parsed), hits),
         action=action,
@@ -149,6 +153,36 @@ async def messages(
     request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ):
+    return await _process_messages(request, session, caller=None)
+
+
+@app.post("/cli/{token}/v1/messages")
+async def messages_via_cli(
+    token: str,
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+):
+    """Same as /v1/messages but identifies the caller from the URL path.
+
+    Claude Code doesn't let us inject custom headers, but it does respect the
+    full path of `ANTHROPIC_BASE_URL`. The CLI bakes the token in there so
+    every prompt becomes attributable to the dev who ran `tranquera setup`.
+    """
+    caller = await resolve_cli_token(session, token)
+    if caller is None:
+        return JSONResponse(
+            {"error": "unknown or revoked tranquera token"},
+            status_code=401,
+        )
+    return await _process_messages(request, session, caller=caller)
+
+
+async def _process_messages(
+    request: Request,
+    session: AsyncSession,
+    *,
+    caller: CliCaller | None,
+):
     started = time.perf_counter()
     raw_body = await request.body()
 
@@ -166,12 +200,18 @@ async def messages(
         )
 
     is_streaming = bool(body_dict.get("stream"))
-    org_id = request.headers.get("x-team22-org-key", settings.default_org_id)
+    if caller is not None:
+        org_id = caller.org_id
+        user_id: UUID | None = caller.member_id
+    else:
+        org_id = request.headers.get("x-team22-org-key", settings.default_org_id)
+        user_id = None
     trace_id = str(ULID())
 
     logger.info(
-        "[req] trace=%s org=%s model=%s stream=%s",
-        trace_id, org_id, parsed.model, is_streaming,
+        "[req] trace=%s org=%s user=%s model=%s stream=%s",
+        trace_id, org_id, str(user_id) if user_id else "-",
+        parsed.model, is_streaming,
     )
 
     # ----- Layer 1: regex -----------------------------------------
@@ -233,6 +273,7 @@ async def messages(
             session,
             trace_id=trace_id,
             org_id=org_id,
+            user_id=user_id,
             request_model=parsed.model,
             parsed=parsed,
             hits=hits,
@@ -286,6 +327,7 @@ async def messages(
         session,
         trace_id=trace_id,
         org_id=org_id,
+        user_id=user_id,
         request_model=parsed.model,
         parsed=parsed,
         hits=hits,
@@ -314,6 +356,19 @@ async def messages(
 
 @app.post("/v1/messages/count_tokens")
 async def count_tokens(request: Request):
+    return await _passthrough_count_tokens(request)
+
+
+@app.post("/cli/{token}/v1/messages/count_tokens")
+async def count_tokens_via_cli(token: str, request: Request):
+    # We don't gate count_tokens on token validity — it's a read-only helper
+    # Claude Code calls before every prompt, and rejecting it would make the
+    # whole CLI unusable on revoked/expired tokens. The actual /v1/messages
+    # call enforces auth.
+    return await _passthrough_count_tokens(request)
+
+
+async def _passthrough_count_tokens(request: Request):
     raw_body = await request.body()
     upstream_resp = await open_upstream(
         "POST",

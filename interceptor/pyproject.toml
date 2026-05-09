@@ -1,6 +1,6 @@
 [project]
 name = "tranquera-interceptor"
-version = "0.1.0"
+version = "0.3.0"
 description = "Tranquera proxy — intercepts Anthropic Messages API requests and applies org policies before forwarding."
 requires-python = ">=3.12"
 dependencies = [

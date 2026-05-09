@@ -58,6 +58,42 @@ class Policy(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class CliToken(SQLModel, table=True):
+    """Persistent CLI token. Issued once via the device flow, hashed (sha256)
+    in DB. The interceptor receives the plaintext via the `/cli/{token}/...`
+    URL path, hashes it, and looks up the member here."""
+
+    __tablename__ = "cli_tokens"
+
+    id: UUID = Field(
+        default_factory=uuid4,
+        sa_column=Column(PgUUID(as_uuid=True), primary_key=True),
+    )
+    member_id: UUID = Field(sa_column=Column(PgUUID(as_uuid=True), nullable=False))
+    token_hash: str = Field(unique=True)
+    label: str | None = None
+    last_used_at: datetime | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    revoked_at: datetime | None = None
+
+
+class Member(SQLModel, table=True):
+    """Read-only mapping for the interceptor — we only need (id → org_id) to
+    attribute interactions. Auth.js / device-flow writes happen in `web/`."""
+
+    __tablename__ = "members"
+
+    id: UUID = Field(
+        default_factory=uuid4,
+        sa_column=Column(PgUUID(as_uuid=True), primary_key=True),
+    )
+    org_id: str = Field(default="demo")
+    email: str
+    role: str = Field(default="admin")
+    user_id: str | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Interaction(SQLModel, table=True):
     __tablename__ = "interactions"
 
