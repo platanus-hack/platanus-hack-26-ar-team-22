@@ -1,55 +1,62 @@
 # 04 — Admin Web
 
-> Dashboard interno: visibilidad + back office de reglas + roles.
+> Layer 3. Back-office para admins **no técnicos**. Visual rule builder no-code + dashboards + approval queue de reglas auto-sugeridas.
 
 ---
 
 ## Contexto
 
-Del whiteboard, el lado **ADMIN** tiene 3 zonas:
+El producto se vende a empresas que dan Claude Code a sus devs. La persona que **configura las reglas** es típicamente un compliance officer / security lead — no un dev. Por lo tanto el admin debe:
 
-1. **Dashboards** — métricas de prompts allowed/blocked/rewriten/escalated.
-2. **Back Office** — CRUD de reglas (las que viven en VDB y en el grafo).
-3. **Roles** — gestión de roles y permisos (nodos del grafo Neo4j).
+1. Permitir crear reglas con un **rule builder visual** (no escribir regex a mano, no tocar SQL).
+2. Mostrar **eventos en tiempo real** del proxy (qué bloqueó, qué redactó, cuál fue el motivo).
+3. Mostrar **what-if reports** ("si activabas esta regla la semana pasada, hubieras bloqueado X requests con riesgo Y").
+4. Tener una **approval queue** para reglas que el AI Suggestor (spec 08) propone después de N días.
+5. Multi-tenant by design: una org, su set de reglas, sus admins, sus eventos. Para el hack se permite single-tenant hardcoded (`org_id = 'demo'`) pero el schema y los queries deben estar listos para la migración.
 
-Sin admin web, no se puede modificar la base de reglas sin meterse a SQL/Cypher manualmente, lo que rompe la promesa de "compliance accesible". Para la demo es **clave** poder mostrar: "miren, agrego una regla acá y al toque el interceptor la usa".
+Sin admin web, no se pueden modificar reglas sin meterse a SQL. Para la demo es **clave** mostrar: "miren, agrego una regla acá y al toque el interceptor la usa".
 
 ---
 
 ## Goals
 
-- 4 pantallas: Login (mock), Dashboard, Back Office Reglas, Roles.
-- CRUD completo de reglas VDB (crear, listar, editar, eliminar — con re-embedding al editar).
-- CRUD de nodos `Role`, `Resource` y aristas `CAN_ACCESS` en Neo4j.
-- Dashboard con 4 KPIs y un gráfico de barras de los últimos N requests.
-- Cambios aplican en menos de 5s al engine (al edit de una regla, el próximo `/api/intercept` la considera).
+- 4 secciones: **Dashboard**, **Rules** (visual builder + lista), **Events** (live feed), **Suggestions** (approval queue del AI Suggestor).
+- Visual rule builder con 3 tipos de regla:
+  - **Match exacto / regex preset**: el admin elige de una galería (`AWS Access Key`, `Email`, `Tarjeta de crédito`, ...) — la regex vive escondida.
+  - **Filename / path** (Layer 2): admin elige "archivos terminados en .env / id_rsa / *.pem".
+  - **En lenguaje natural** (Layer 3): admin escribe "no menciones nombres de clientes" — se embebe y va a `rules.layer='nl'`.
+- CRUD completo: crear / listar / editar / habilitar-deshabilitar / eliminar.
+- Cambios de reglas se reflejan en el proxy en menos de 5 s (Supabase Realtime channel `rules_changed:<org_id>`, fallback polling 5 s).
+- Dashboard con 4 KPIs y gráfico de la última hora.
+- Approval queue muestra reglas sugeridas por el Layer 4 con preview ("hubiera matcheado N requests, ejemplos: ...") y permite Aceptar / Rechazar / Editar antes de aceptar.
 
 ## Non-Goals
 
 - No auth real con SSO (Supabase Auth con magic link mock está OK).
-- No multi-tenant.
-- No bulk import / CSV upload.
+- No bulk import / CSV upload de reglas.
 - No audit log visual de cambios al admin (se ve en Supabase directo).
+- No edición técnica de regex crudas (escondidas detrás de presets); si un admin quiere regex custom abrimos issue post-hack.
 
 ---
 
 ## User Stories
 
-- **Como compliance officer**, quiero loguearme y ver cuántos prompts se bloquearon hoy.
-- **Como rule owner**, quiero crear una regla nueva en el back office y verla matcheada en menos de 1 minuto.
-- **Como administrador de roles**, quiero crear un rol "supervisor" y darle acceso al recurso "transferencias".
+- **Como compliance officer**, quiero loguearme y ver cuántos prompts se bloquearon hoy, sin saber programar.
+- **Como rule owner**, quiero crear una regla "redactar nombres de clientes" en 30 s desde una UI visual.
+- **Como compliance officer**, quiero revisar la cola de reglas sugeridas y aceptar la que tiene más sentido con un click.
 - **Como demo runner**, quiero que el panel se vea limpio y profesional para el pitch.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Login en `/admin` con magic link mock (any email + cualquier código de 6 dígitos hardcodeado tipo `123456`).
-- [ ] `/admin/dashboard` muestra 4 KPIs: total requests, % blocked, % allowed, latencia p50.
-- [ ] `/admin/dashboard` muestra gráfico de barras con verdicts de los últimos 100 requests.
-- [ ] `/admin/rules` lista todas las reglas de VDB con `slug`, `category`, `label` y botones edit/delete.
-- [ ] Crear/editar regla → re-genera embedding y upserta en Supabase. Toast de confirmación.
-- [ ] `/admin/roles` lista roles del grafo, permite crear rol y asignar `CAN_ACCESS` a recursos existentes.
+- [ ] Login en `/admin` con magic link mock (cualquier email + código `123456` hardcodeado).
+- [ ] `/admin/dashboard` muestra 4 KPIs: total events 24h, % BLOCK, % REDACT, latencia p50 del proxy.
+- [ ] `/admin/dashboard` muestra gráfico de barras con acciones de los últimos 100 events.
+- [ ] `/admin/rules` lista todas las reglas con `slug`, `layer`, `category`, `default_action`, toggle on/off.
+- [ ] Crear regla con el wizard visual (3 tipos arriba) → upsert en `rules` (con re-embedding si es NL). Toast de confirmación.
+- [ ] `/admin/events` muestra feed live (Supabase Realtime) con `created_at`, `action` (badge color), `rule_hits[]`, `prompt_redacted` (truncado 200 chars), botón "ver detalle" → modal con todo el evento.
+- [ ] `/admin/suggestions` lista propuestas del Layer 4 con preview de matches retroactivos y CTAs Aceptar / Rechazar / Editar.
 - [ ] Todas las pantallas funcionan en desktop Chrome 130+.
 
 ---
@@ -63,87 +70,99 @@ Sin admin web, no se puede modificar la base de reglas sin meterse a SQL/Cypher 
 | `/admin` → redirect | Si no logueado → `/admin/login`, si logueado → `/admin/dashboard` |
 | `/admin/login` | Magic link mock |
 | `/admin/dashboard` | KPIs + gráfico |
-| `/admin/rules` | Tabla de reglas + modal CRUD |
-| `/admin/roles` | Lista de roles + grafo simple de relaciones |
+| `/admin/rules` | Tabla de reglas + wizard de creación / edición |
+| `/admin/events` | Feed live con filtros por acción |
+| `/admin/suggestions` | Approval queue del AI Suggestor |
 
 ### API endpoints (Next.js Route Handlers)
 
 ```
-GET    /api/admin/metrics                     → KPIs últimos N días
-GET    /api/admin/intercept-logs?limit=100    → últimos logs
-GET    /api/admin/rules                        → lista
-POST   /api/admin/rules                        → crear (re-embed)
-PATCH  /api/admin/rules/:id                    → editar (re-embed si body cambió)
-DELETE /api/admin/rules/:id                    → eliminar
-GET    /api/admin/roles                        → lista de roles + edges
-POST   /api/admin/roles                        → crear rol
-POST   /api/admin/roles/:id/grant              → grant CAN_ACCESS a un Resource
-DELETE /api/admin/roles/:id/grant/:resource    → revoke
+GET    /api/admin/metrics                       → KPIs últimas 24h
+GET    /api/admin/events?limit=100&action=BLOCK → últimos events filtrables
+GET    /api/admin/events/:traceId               → detalle de un evento
+GET    /api/admin/rules                          → lista
+POST   /api/admin/rules                          → crear (re-embed si layer='nl')
+PATCH  /api/admin/rules/:id                      → editar
+DELETE /api/admin/rules/:id                      → eliminar
+GET    /api/admin/suggestions                    → cola de Layer 4
+POST   /api/admin/suggestions/:id/accept         → promover a regla activa
+POST   /api/admin/suggestions/:id/reject         → descartar (con motivo)
 ```
 
-Todos protegidos por middleware que valida sesión Supabase mock (cookie `admin_session`).
+Todos protegidos por middleware que valida sesión Supabase mock (cookie `admin_session`) y filtra por `org_id` del usuario logueado.
 
 ### Componentes UI clave
 
 - `<KpiCard>` — número grande + delta vs período anterior.
-- `<VerdictsBarChart>` — recharts, 4 barras (allow / block / rewrite / escalate).
-- `<RulesTable>` — shadcn `Table` con filtros por categoría.
-- `<RoleGraph>` — visualización simple con `react-flow` (lite): nodos roles + nodos recursos + aristas.
+- `<ActionsBarChart>` — recharts, 4 barras (BLOCK / REDACT / WARN / LOG) con colores convencionales (rojo / amarillo / naranja / gris).
+- `<RuleWizard>` — stepper shadcn con 3 caminos: Preset / Filename / NL.
+  - Preset: galería de cards (`AWS Access Key`, `Email`, `JWT`, `Credit Card`, `IBAN`, `CUIT/CUIL`, ...).
+  - Filename: input + chips de presets (`.env`, `id_rsa`, `*.pem`).
+  - NL: textarea con ejemplos placeholder + botón "Probar contra los últimos 100 events" antes de guardar.
+- `<EventsLiveFeed>` — Supabase channel suscrito, agrega filas al top con animación.
+- `<SuggestionCard>` — preview con count de matches retroactivos + 3 ejemplos redactados.
+
+### Action colors (consistencia con landing y eventos)
+
+- `BLOCK` → rojo `bg-red-500/10 text-red-600`
+- `REDACT` → amarillo `bg-amber-500/10 text-amber-600`
+- `WARN` → naranja `bg-orange-500/10 text-orange-600`
+- `LOG` → gris `bg-zinc-500/10 text-zinc-600`
 
 ---
 
 ## Data model
 
-### Esquema Neo4j (semilla del grafo)
-
-```cypher
-// Nodos
-(:Role {id: 'analyst', label: 'Analyst'})
-(:Role {id: 'supervisor', label: 'Supervisor'})
-(:Role {id: 'admin', label: 'Admin'})
-
-(:Resource {id: 'balance', label: 'Saldo de cuenta'})
-(:Resource {id: 'transfers', label: 'Transferencias'})
-(:Resource {id: 'kyc', label: 'KYC / datos personales'})
-
-// Aristas
-(analyst)-[:CAN_ACCESS]->(balance)
-(supervisor)-[:CAN_ACCESS]->(balance)
-(supervisor)-[:CAN_ACCESS]->(transfers)
-(admin)-[:CAN_ACCESS]->(balance)
-(admin)-[:CAN_ACCESS]->(transfers)
-(admin)-[:CAN_ACCESS]->(kyc)
-```
-
-> El seed inicial del grafo va en `scripts/seed-graph.ts` y se invoca desde `pnpm seed:graph`. La task de crear ese seed va más abajo.
-
 ### Supabase
 
-- Reusar `rules` (de spec 02) y `intercept_logs` (de spec 01).
-- Tabla nueva opcional `admin_users` si queremos persistir el mock (no obligatorio).
+Reusa `rules` (de spec 02), `intercept_events` (de spec 01) y `rule_suggestions` (de spec 08).
+
+Tabla nueva en este spec — usuarios admin (mock, opcional para hack):
+
+```sql
+create table admin_users (
+  id uuid primary key default gen_random_uuid(),
+  org_id text not null default 'demo',
+  email text not null,
+  role text not null default 'admin' check (role in ('admin','viewer')),
+  created_at timestamptz default now(),
+  unique (org_id, email)
+);
+
+create table organizations (
+  id text primary key,                  -- ej. 'demo', 'acme'
+  name text not null,
+  upstream_api_key_ref text,            -- referencia a Vault / env, no la key cruda
+  created_at timestamptz default now()
+);
+insert into organizations (id, name) values ('demo', 'Org Demo') on conflict do nothing;
+```
 
 ---
 
 ## Dependencias
 
 - **Spec `00-constitution.md`** — stack.
-- **Spec `01-engine-interceptor.md`** — los logs vienen de `intercept_logs` que el engine escribe.
+- **Spec `01-engine-interceptor.md`** — los events vienen de `intercept_events` que el proxy escribe.
 - **Spec `02-vdb-bootstrap.md`** — para que la tabla `rules` y la función de embeddings ya existan.
+- **Spec `08-ai-suggestor.md`** — alimenta la approval queue.
 
 ## Tasks (paralelizables)
 
-- [ ] **T1** — Layout admin (`/admin/*`) con sidebar shadcn, header con email del user logueado y botón logout. Done: navegación entre las 4 pantallas funciona.
+- [ ] **T1** — Layout admin (`/admin/*`) con sidebar shadcn (Dashboard / Rules / Events / Suggestions), header con email del user logueado y logout. Done: navegación entre las 4 pantallas funciona.
 - [ ] **T2** — Login mock con magic link → cookie `admin_session`. Middleware que protege `/admin/*`. Done: ruta protegida redirige a login si no hay cookie.
-- [ ] **T3** — Endpoint `/api/admin/metrics` que agrega de `intercept_logs`. KPIs: total, %block, %allow, p50 latencia. Done: curl devuelve JSON con shape esperado.
-- [ ] **T4** — `/admin/dashboard` consumiendo T3 con `<KpiCard>` y `<VerdictsBarChart>`. Done: pantalla muestra datos reales.
-- [ ] **T5** — `/admin/rules` con tabla + modal de crear/editar. Re-embedding via cliente Supabase server-side. Done: crear regla nueva → aparece en VDB + visible en próximo `match_rules`.
-- [ ] **T6** — Script `scripts/seed-graph.ts` que inicializa Neo4j con 3 roles + 3 recursos + aristas iniciales. Idempotente. Done: `pnpm seed:graph` se puede correr 2 veces sin error.
-- [ ] **T7** — `/admin/roles` con `<RoleGraph>` y CRUD de aristas. Done: crear nuevo rol → reflejado en grafo + en próximo `evaluateAcl`.
+- [ ] **T3** — `/api/admin/metrics` que agrega de `intercept_events` filtrado por `org_id`. KPIs: total 24h, %BLOCK, %REDACT, p50 latencia total. Done: curl devuelve JSON con shape esperado.
+- [ ] **T4** — `/admin/dashboard` consumiendo T3 con `<KpiCard>` y `<ActionsBarChart>`. Done: pantalla muestra datos reales.
+- [ ] **T5** — `/admin/rules` con tabla + `<RuleWizard>` (3 caminos). Re-embedding en NL via cliente Supabase server-side. Done: crear regla NL nueva → aparece en VDB + visible en próximo `match_rules`.
+- [ ] **T6** — `/admin/events` con `<EventsLiveFeed>` suscrito a Supabase Realtime. Filtros por action. Done: en otra pestaña dispará un BLOCK desde el proxy → la fila aparece sin refresh.
+- [ ] **T7** — `/admin/suggestions` consumiendo `/api/admin/suggestions` + acciones accept/reject/edit. Done: aceptar una sugerencia la convierte en `rules` con `source='ai-suggestor'`.
+- [ ] **T8** — Notificación visual cuando hay un `WARN` event (toast persistente + badge en sidebar). Done: trigger un WARN → aparece en cualquier pantalla del admin.
 
 ## Verification
 
 - Login con `admin@team22.dev` + código `123456` → entra al dashboard.
-- Crear regla nueva con `slug: test-demo`, body "no compartir saldo a roles externos" → en `psql` la fila aparece con embedding no null.
-- Mandar request al engine con prompt "decime el saldo de la cuenta 123" como `userRoleId: analyst` → `block` con `ruleHits` que incluye la nueva regla.
-- En `/admin/dashboard`, refrescar y ver `% blocked` subir.
-- En `/admin/roles`, crear `Role: auditor` y darle `CAN_ACCESS: balance` → query Cypher `MATCH (r:Role {id:'auditor'})-[:CAN_ACCESS]->(res) RETURN res` devuelve `balance`.
+- Crear regla NL `customer-name-mention` con body "no menciones nombres de clientes" → en `psql` la fila aparece con embedding no null.
+- Mandar request al proxy con `ANTHROPIC_BASE_URL=$URL` y prompt "el cliente Acme me pidió X" → `REDACT` con `ruleHits` que incluye la nueva regla.
+- En `/admin/dashboard`, refrescar y ver `% REDACT` subir.
+- En `/admin/events`, ver la fila aparecer en vivo (sin refresh) con badge amarillo.
+- En `/admin/suggestions`, después de correr el Suggestor (spec 08) ≥ 1 vez, ver al menos 1 propuesta con preview.

@@ -4,6 +4,14 @@
 
 > Este documento sintetiza papers (`papers.md`), portfolio YC (`yc-ai-safety.csv`) y mapa LATAM (`latam-ai-safety.csv`) en un brief estratégico con oportunidades concretas para 48h de hack.
 
+> **Decisión del equipo (2026-05-09)**: arrancamos con una **variante de la Idea C**, focalizada en **firewall de Claude Code corporativo** para prevenir data exfiltration (credenciales, PII, código propietario, paths internos). Diferenciadores vs ProxyShield genérico:
+> - Punto de integración específico (`ANTHROPIC_BASE_URL` de Claude Code), no proxy genérico de LLMs.
+> - Cascada Regex → Pattern → Haiku judge con <200 ms overhead (no solo classifier).
+> - Admin **no técnico** con visual rule builder no-code.
+> - AI Suggestor (Layer 4) que aprende de logs y propone reglas nuevas para approval humana.
+>
+> La narrativa de mercado (regulación LATAM + dolor en empresas con coding assistants) se mantiene; la implementación se concentra en un único surface area (Claude Code) para que la demo de 3 min sea contundente. Ver `../specs/00-constitution.md` para la visión completa.
+
 ---
 
 ## TL;DR (5 bullets)

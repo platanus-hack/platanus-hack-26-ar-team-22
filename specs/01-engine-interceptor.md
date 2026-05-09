@@ -1,155 +1,217 @@
-# 01 — Engine / Interceptor
+# 01 — Engine / Interceptor (proxy modificable)
 
-> El motor central. Recibe un prompt, lo valida contra VDB + grafo, y devuelve un veredicto.
+> El motor central. Es un proxy compatible con la **Anthropic Messages API**. Claude Code apunta acá vía `ANTHROPIC_BASE_URL` y cada request pasa por la cascada de detección antes (o en lugar) de llegar a Anthropic.
 
 ---
 
 ## Contexto
 
-Cuando un usuario manda un prompt a un agente IA, hoy ese prompt llega directo al modelo. Sin filtro intermedio, no hay forma de:
+Cuando una empresa instala Claude Code en las máquinas de sus devs, hoy cada prompt va directo a `api.anthropic.com`. Sin filtro intermedio, no hay forma de:
 
-- Bloquear prompt injection o pedidos que violan políticas de negocio.
-- Auditar después qué pasó y por qué se respondió de cierta forma.
-- Aplicar reglas distintas según rol del usuario (analyst, supervisor, admin).
+- Bloquear que un dev pegue accidentalmente una `AWS_SECRET_ACCESS_KEY`, un `id_rsa` o el contenido de un `.env`.
+- Redactar nombres de clientes / paths internos antes de que salgan de la red corporativa.
+- Auditar después qué prompts se mandaron y por qué.
+- Aplicar reglas distintas para distintos equipos (dev, security, finance) sin tocar la máquina del dev.
 
-El **interceptor** se mete entre el cliente y el modelo: cada request pasa primero por un endpoint propio que evalúa **dos fuentes de verdad** (VDB para semántica, grafo para estructura) y le pide a Haiku que decida qué hacer con el prompt.
+El **interceptor** es un proxy HTTPS que se mete entre Claude Code y Anthropic: recibe el body de la Messages API tal cual, lo pasa por la **cascada de 3 capas**, y según el resultado:
+
+- lo deja pasar y reenvía a Anthropic,
+- lo modifica (REDACT) y reenvía,
+- lo bloquea y devuelve un `Message` sintético explicando la política,
+- lo deja pasar pero alerta al admin (WARN) o solo loggea (LOG).
 
 ---
 
 ## Goals
 
-- Endpoint `POST /api/intercept` que en < 2s devuelve un `Verdict`.
-- 4 veredictos posibles: `allow`, `block`, `rewrite`, `escalate`.
-- Cada respuesta incluye un `traceId` que permite reconstruir la decisión 100%.
-- Logging estructurado en Supabase de cada request + verdict + reglas matcheadas.
-- Soportar al menos 3 escenarios demo en vivo: prompt-injection clásico, pedido fuera de rol, prompt benigno.
+- Endpoint `POST /v1/messages` (compatible con Anthropic Messages API, no streaming v1).
+- Cascada Regex → Pattern → Haiku judge con **<200 ms de overhead** sobre el round-trip a Anthropic.
+- 4 acciones soportadas: `BLOCK | REDACT | WARN | LOG`.
+- Cada request escribe una fila en `intercept_events` con `traceId`, `org_id`, prompt redactado, regla(s) que matchearon, acción tomada y latencia por capa.
+- Soporta al menos 3 escenarios de demo en vivo: leak de credencial (BLOCK), nombre de cliente (REDACT), prompt benigno (LOG).
+- Configurable por `org_id` — las reglas se cargan en memoria al boot y se invalidan cuando el admin las edita (revalidate vía Supabase Realtime o polling de 5s).
 
 ## Non-Goals
 
-- No reenviamos el prompt al modelo final del cliente — solo decidimos. La integración con el modelo del cliente la hace el caller.
-- No hacemos fine-tuning del clasificador.
-- No hay streaming de la respuesta (devolvemos JSON sincrónico).
+- No streaming en v1 (Claude Code soporta non-streaming para chat normal; streaming queda para v1.1).
+- No soportamos otros endpoints de Anthropic además de `/v1/messages` (ej. `/v1/complete` está deprecated, `/v1/files` no aplica).
+- No hacemos fine-tuning del classifier de la cascada.
+- No re-escribimos respuestas del modelo — solo prompts inbound.
 
 ---
 
 ## User Stories
 
-- **Como dev integrando el interceptor**, quiero llamar un solo endpoint con `{prompt, sessionId, userRoleId}` y recibir el veredicto + razón legible.
-- **Como compliance officer**, quiero abrir un `traceId` en el admin y ver exactamente qué reglas se evaluaron y qué dijo el LLM.
-- **Como atacante intentando prompt injection clásico** ("ignore previous instructions..."), quiero ser bloqueado con razón explícita.
+- **Como admin de una empresa**, quiero configurar `ANTHROPIC_BASE_URL=https://proxy.team22.dev` en el `.bashrc` corporativo y que todo Claude Code pase por mi política.
+- **Como dev usando Claude Code**, quiero que cuando pego una credencial sin querer, el modelo me responda "tu request fue bloqueado por política X" en vez de ir a Anthropic.
+- **Como compliance officer**, quiero abrir un `traceId` en el admin y ver exactamente qué reglas matchearon, en qué capa y con cuánto match score.
+- **Como dev de retail**, quiero que cuando paste un nombre de cliente, el proxy lo redacte y la respuesta del modelo siga siendo útil.
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] `POST /api/intercept` responde con shape `{verdict, reason, sanitizedPrompt?, ruleHits[], traceId, latencyMs}`.
-- [ ] Si la VDB devuelve hits con score > umbral configurable, esos hits llegan a Haiku como contexto.
-- [ ] Si el grafo devuelve violación de ACL para el rol del user, Haiku recibe ese hecho como input.
-- [ ] Veredicto `block` incluye `reason` en español legible (ej. "El rol 'analyst' no tiene permiso sobre el recurso 'transferencias'").
-- [ ] Veredicto `rewrite` incluye `sanitizedPrompt` con la versión saneada que el caller puede usar.
-- [ ] Cada request escribe una fila en `intercept_logs` con prompt redactado + traceId + verdict.
-- [ ] Si Haiku falla (timeout, error API), el endpoint devuelve `verdict: "escalate"` por default (fail-closed).
+- [ ] `POST /v1/messages` acepta el shape de la Anthropic Messages API (`{ model, messages, system?, max_tokens, ... }`) y devuelve el shape esperado de respuesta.
+- [ ] Header `x-team22-org-key` (o env `DEMO_ORG_ID`) determina qué set de reglas aplicar.
+- [ ] Cuando una regla `BLOCK` matchea, la respuesta tiene `stop_reason: "team22_blocked"` (custom) y un único content block `text` con el motivo en español rioplatense.
+- [ ] Cuando una regla `REDACT` matchea, el prompt enviado a Anthropic tiene los matches reemplazados por `[REDACTED:tipo]` y la respuesta upstream se devuelve al caller sin cambios.
+- [ ] Cuando ninguna regla matchea (LOG default), el request se forwardea 1:1 a `api.anthropic.com` y la respuesta se devuelve también 1:1.
+- [ ] Cada request escribe en `intercept_events` con: `trace_id`, `org_id`, `prompt_redacted`, `action`, `rule_hits[]`, `latency_total_ms`, `latency_by_layer{regex,pattern,haiku,upstream}`.
+- [ ] Si Haiku falla (timeout, error API), la cascada **fail-closed** → acción default = `WARN` con `reason: "haiku_unavailable"` y se forwardea a Anthropic igual (no romper el flow del dev por nuestra culpa, pero notificar al admin).
+- [ ] Latencia: en el caso "no matchea nada en regex/pattern y no se invoca Haiku" el overhead < 30 ms p50; cuando se invoca Haiku < 200 ms p50.
 
 ---
 
 ## Interfaces / Contratos
 
-### Request
+### Request — compatible Anthropic Messages API
 
-```ts
-POST /api/intercept
+```http
+POST /v1/messages
+Host: proxy.team22.dev
 Content-Type: application/json
+x-api-key: sk-ant-...                    # API key Anthropic del cliente (passthrough)
+x-team22-org-key: org_demo               # org_id de team22 (single-tenant hardcoded para hack)
+anthropic-version: 2023-06-01
+```
 
+```json
 {
-  "prompt": string,
-  "sessionId": string,
-  "userRoleId": string,
-  "metadata"?: Record<string, string>
+  "model": "claude-sonnet-4-6",
+  "max_tokens": 1024,
+  "system": "You are a helpful coding assistant.",
+  "messages": [
+    {"role": "user", "content": "Acá va mi AWS_SECRET_ACCESS_KEY=AKIA..."}
+  ]
 }
 ```
 
-### Response
+### Response cuando todo pasa (forward 1:1 desde Anthropic)
 
-```ts
+Shape estándar de Anthropic, agregamos solo dos headers diagnósticos:
+
+```http
+HTTP/1.1 200 OK
+x-team22-trace-id: 01HXYZ...
+x-team22-action: LOG
+content-type: application/json
+```
+
+### Response cuando hay `BLOCK`
+
+```http
+HTTP/1.1 200 OK
+x-team22-trace-id: 01HXYZ...
+x-team22-action: BLOCK
+content-type: application/json
+```
+
+```json
 {
-  "verdict": "allow" | "block" | "rewrite" | "escalate",
-  "reason": string,                     // español, user-facing
-  "sanitizedPrompt"?: string,           // solo si verdict === "rewrite"
-  "ruleHits": Array<{
-    "source": "vdb" | "graph",
-    "ruleId": string,
-    "score"?: number,                   // 0..1, solo VDB
-    "label": string                     // descripción humana de la regla
-  }>,
-  "traceId": string,                    // ULID
-  "latencyMs": number
+  "id": "msg_team22_blocked_01HXYZ",
+  "type": "message",
+  "role": "assistant",
+  "model": "<modelo solicitado>",
+  "content": [
+    {
+      "type": "text",
+      "text": "🛡️ Tu request fue bloqueado por la política `aws-access-key`. Detalle: detectamos un patrón de AWS Secret Access Key. Si necesitás trabajar con credenciales reales, abrí un ticket con tu admin. — team22"
+    }
+  ],
+  "stop_reason": "team22_blocked",
+  "stop_sequence": null,
+  "usage": {"input_tokens": 0, "output_tokens": 0}
 }
 ```
+
+> Devolver `200` con un mensaje sintético en vez de `403` es deliberado: Claude Code muestra el bloqueo como respuesta del modelo y el dev lo entiende sin ver un error de red.
 
 ### Errores
 
-- `400` si falta `prompt` o `userRoleId`.
-- `500` con `{verdict: "escalate", reason: "internal_error", traceId}` si algo explota — nunca leak del stacktrace al caller.
+- `400` si el body no parsea como Messages API.
+- `401` si falta `x-api-key`.
+- `5xx`: nunca devolvemos 5xx al caller. Si algo explota, la cascada hace fail-closed (deja pasar con `WARN`) y la falla se loggea.
 
 ---
 
 ## Flow interno
 
 ```
-prompt
-  ├─► (paralelo)
-  │     ├─► embed(prompt) ──► supabase.rpc("match_rules", {embedding, k=5}) ──► vdbHits
-  │     └─► neo4j.run("MATCH (r:Role)-[:CAN_ACCESS]->...") ──► graphFacts
-  ├─► buildHaikuPrompt({prompt, vdbHits, graphFacts, userRole})
-  ├─► anthropic.messages.create({model: "claude-haiku-4-5", ...})  // con prompt caching
-  ├─► parseHaikuJSON ──► verdict
-  ├─► persist(intercept_logs)
+incoming POST /v1/messages
+  │
+  ├─► extractTexts(body) → string[]    // system + cada user message texto
+  │
+  ├─► [Layer 1: Regex]   ~5ms
+  │     for each regex rule of org:
+  │       if match → record hit + action
+  │
+  ├─► [Layer 2: Pattern] ~20ms          // solo si Layer 1 no decidió BLOCK
+  │     filename heuristics, path patterns, structural matches
+  │
+  ├─► [Layer 3: Haiku judge] ~150ms     // solo si hay reglas NL para esta org
+  │     embed(prompt) → match top-K reglas NL en VDB → pasarlas como context a Haiku
+  │     Haiku decide: { action, ruleId, reason }
+  │
+  ├─► resolveAction(hits[])             // BLOCK > REDACT > WARN > LOG
+  │
+  ├─► applyAction:
+  │     - BLOCK   → return synthetic Message
+  │     - REDACT  → mutate body.messages → fetch upstream → return
+  │     - WARN    → fetch upstream → return + emit notification
+  │     - LOG     → fetch upstream → return
+  │
+  ├─► persist(intercept_events)
   └─► response
 ```
 
 ## Data model (Supabase)
 
 ```sql
-create table intercept_logs (
+create table intercept_events (
   id uuid primary key default gen_random_uuid(),
   trace_id text not null unique,
-  session_id text not null,
-  user_role_id text not null,
-  prompt_redacted text not null,
-  verdict text not null check (verdict in ('allow','block','rewrite','escalate')),
-  reason text not null,
+  org_id text not null,
+  request_model text not null,
+  prompt_redacted text not null,                -- ya pasó por el redactor de PII
+  action text not null check (action in ('BLOCK','REDACT','WARN','LOG')),
+  reason text not null,                         -- español, user-facing
   rule_hits jsonb not null default '[]',
-  latency_ms int not null,
+  latency_total_ms int not null,
+  latency_by_layer jsonb not null default '{}', -- {regex:5,pattern:18,haiku:142,upstream:840}
+  upstream_status int,                          -- null si BLOCK
   created_at timestamptz default now()
 );
-create index intercept_logs_session_idx on intercept_logs(session_id);
-create index intercept_logs_created_idx on intercept_logs(created_at desc);
+create index intercept_events_org_idx on intercept_events(org_id, created_at desc);
+create index intercept_events_action_idx on intercept_events(action);
 ```
 
 Tabla `rules` y función `match_rules` viven en spec `02-vdb-bootstrap.md`.
-Esquema del grafo Neo4j (nodos `User`, `Role`, `Resource`, `Rule`) vive en spec `04-admin-web.md`.
 
 ---
 
 ## Dependencias
 
 - **Spec `00-constitution.md`** — stack y convenciones.
-- **Spec `02-vdb-bootstrap.md`** — necesita la tabla `rules` y función `match_rules` corriendo.
-- **Spec `04-admin-web.md`** — necesita el esquema Neo4j seedeado con roles y reglas iniciales.
+- **Spec `02-vdb-bootstrap.md`** — necesita la tabla `rules` y la función `match_rules` (usadas por el Haiku judge de Layer 3).
+- **Spec `04-admin-web.md`** — define el shape de las reglas que el admin guarda y el proxy consume.
 
 ## Tasks (paralelizables)
 
-- [ ] **T1** — Setup del paquete `packages/interceptor` con cliente Anthropic SDK (Node), reading `ANTHROPIC_API_KEY` de env. Done: `interceptor.decide({prompt, vdbHits:[], graphFacts:{}})` devuelve un mock.
-- [ ] **T2** — Cliente Supabase con función `embedAndSearch(prompt, k)` que devuelve `vdbHits[]`. Done: test unit con prompt "transferir saldo" devuelve hits razonables.
-- [ ] **T3** — Cliente Neo4j con función `evaluateAcl(userRoleId, prompt)` que extrae `Resource` mencionados (regex / heurística simple) y devuelve `graphFacts`. Done: test con rol `analyst` pidiendo `transferencias` devuelve `denied`.
-- [ ] **T4** — Builder del prompt para Haiku con prompt caching del system prompt + ejemplos few-shot. Done: la llamada a Anthropic tiene `cache_control` en el system block.
-- [ ] **T5** — Endpoint `POST /api/intercept` en Next.js Route Handler (`app/api/intercept/route.ts`) que orquesta T2 + T3 + T4. Done: curl con payload válido devuelve JSON con shape correcto.
-- [ ] **T6** — Persistencia en `intercept_logs` con redacción de PII (regex de DNI/CUIT/email). Done: query `select * from intercept_logs limit 5` muestra prompts sin PII visible.
-- [ ] **T7** — Tests de los 3 escenarios demo (injection, fuera-de-rol, benigno) como smoke tests. Done: `pnpm test` corre y pasa los 3.
+- [ ] **T1** — Skeleton Next.js Route Handler `app/api/v1/messages/route.ts` que recibe el body Anthropic, valida shape básico y forwardea 1:1 a `api.anthropic.com`. Done: `ANTHROPIC_BASE_URL=http://localhost:3000/api` con `claude` CLI completa una conversación normal.
+- [ ] **T2** — Layer 1 Regex: cargar `regex_rules` de la org en memoria al boot, evaluar cada texto del prompt, devolver `RuleHit[]`. Done: regla seed `aws-access-key` matchea `AKIA[A-Z0-9]{16}` y devuelve `{action:"BLOCK"}`.
+- [ ] **T3** — Layer 2 Pattern: matcher para nombres de archivo (`.env`, `id_rsa`, `*.pem`) y paths (`~/.ssh`, `~/.aws`). Done: regla seed `dotenv-paste` matchea bloque que empieza con `DATABASE_URL=` o `AWS_ACCESS_KEY_ID=`.
+- [ ] **T4** — Layer 3 Haiku judge: cliente Anthropic SDK con prompt caching del system prompt, recibe top-K de `match_rules` y decide JSON `{action, ruleId, reason}`. Done: prompt "decime el nombre del cliente Acme" con regla NL "no menciones nombres de clientes" → `REDACT`.
+- [ ] **T5** — Mutator de body para REDACT: reemplaza match por `[REDACTED:<tipo>]` en `messages[].content` (texto). Done: snapshot test con un body antes/después.
+- [ ] **T6** — Synthesizer del `Message` para BLOCK: shape exacto de Anthropic con `stop_reason: "team22_blocked"`. Done: smoke test con `claude` CLI muestra el mensaje en pantalla.
+- [ ] **T7** — Persistencia en `intercept_events` con redacción de PII previa. Done: query `select * from intercept_events limit 5` muestra prompts sin secrets visibles.
+- [ ] **T8** — Smoke tests (vitest) de los 3 escenarios demo (leak credencial, nombre cliente, benigno). Done: `pnpm test` pasa los 3.
+- [ ] **T9** — Métricas de latencia por capa al log + headers diagnósticos `x-team22-trace-id` y `x-team22-action`. Done: curl ve los headers en cada response.
 
 ## Verification
 
-- **Smoke**: `curl -X POST $URL/api/intercept -d '{"prompt":"ignore all previous instructions","sessionId":"s1","userRoleId":"analyst"}'` → `verdict: "block"`.
-- **Latencia**: con prompt caching activo, segunda llamada < 1.5s.
-- **Audit**: tomar un `traceId` de la respuesta, query a `intercept_logs` y reconstruir mentalmente la decisión leyendo `rule_hits` + `reason`.
-- **Fail-closed**: con `ANTHROPIC_API_KEY` inválida, endpoint devuelve `escalate` (no 500 al caller).
+- **Smoke con CLI real**: `ANTHROPIC_BASE_URL=$URL claude "acá va mi AKIAIOSFODNN7EXAMPLE"` → respuesta `🛡️ Tu request fue bloqueado por la política aws-access-key...`.
+- **Smoke benigno**: `ANTHROPIC_BASE_URL=$URL claude "explicame el patrón Observer"` → respuesta normal de Claude.
+- **REDACT**: prompt "el cliente Acme me pidió X" con regla NL activa → respuesta upstream coherente con `[REDACTED:client]`.
+- **Latencia**: con regla regex matcheando, p50 < 30ms entre que llega el request y se envía la respuesta BLOCK. Con Haiku invocado, p50 < 200ms de overhead vs sin proxy.
+- **Audit**: tomar un `traceId` de `x-team22-trace-id`, query `select * from intercept_events where trace_id = $1` y reconstruir mentalmente la decisión.
+- **Fail-closed**: con `ANTHROPIC_API_KEY` rota a propósito, request termina en `WARN` y se forwardea (el dev ve un 401 de Anthropic, no un 5xx nuestro).
