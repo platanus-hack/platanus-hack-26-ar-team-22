@@ -103,6 +103,63 @@ interceptor/
     └── seed_policies.py    # 4 reglas regex idempotentes (org='demo')
 ```
 
+## Deploy a Railway
+
+El servicio está pensado para correr en Railway con la Postgres compartida
+en Supabase.
+
+### 1 — preparar la DB
+
+El schema canónico vive en `web/prisma/`. Antes del primer deploy:
+
+1. Crear proyecto en Supabase y habilitar la extensión `vector`
+   (Dashboard → Database → Extensions).
+2. Desde `web/`, apuntar `DATABASE_URL` al DSN directo de Supabase
+   (no el pooler) y correr `pnpm prisma migrate deploy`.
+3. Sembrar al menos las regex iniciales (por ahora,
+   `cd interceptor && uv run python scripts/seed_policies.py`
+   con la `DATABASE_URL` de Supabase).
+
+### 2 — crear el servicio en Railway
+
+Desde `interceptor/` con `railway` CLI logueado:
+
+```bash
+railway login                 # si no estás logueado
+railway init                  # crea proyecto, o `railway link` para uno existente
+railway variables \
+  --set DATABASE_URL='postgresql://postgres:<password>@<host>:5432/postgres' \
+  --set ANTHROPIC_UPSTREAM_URL='https://api.anthropic.com' \
+  --set DEFAULT_ORG_ID='demo'
+railway up
+```
+
+El root del servicio en Railway tiene que ser `interceptor/` (configurable
+en Settings → Source → Root Directory si lo creaste desde el dashboard).
+
+### 3 — verificar
+
+```bash
+curl https://<tu-dominio>.up.railway.app/health
+# → {"status":"ok"}
+```
+
+Y desde el CLI:
+
+```bash
+ANTHROPIC_BASE_URL=https://<tu-dominio>.up.railway.app claude "AKIAIOSFODNN7EXAMPLE"
+```
+
+### Notas
+
+- **Driver async**: `app/db.py` reescribe automáticamente `postgresql://` →
+  `postgresql+asyncpg://`. Pegá el DSN de Supabase tal cual.
+- **SSL**: la conexión a hosts no-locales fuerza `ssl=require`. No hace
+  falta tocar nada para Supabase.
+- **Pooler vs direct**: usar la connection direct (puerto 5432) — el pooler
+  de Supabase (puerto 6543) usa pgbouncer en transaction mode y necesita
+  `prepared_statement_cache_size=0`, no soportado en v0.1.
+
 ## Próximas versiones
 
 - v0.2 — REDACT mutator + WARN.

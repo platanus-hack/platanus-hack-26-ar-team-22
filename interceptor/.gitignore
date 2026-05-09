@@ -5,4 +5,5 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
-uv.lock
+# uv.lock is intentionally tracked: required for reproducible Railway builds
+# via `uv sync --frozen`.

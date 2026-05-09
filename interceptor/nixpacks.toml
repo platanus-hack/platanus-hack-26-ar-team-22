@@ -1,0 +1,15 @@
+# Build config for Railway / nixpacks.
+# Forces Python 3.12 and uses `uv` for fast, deterministic dependency installs.
+
+[phases.setup]
+nixPkgs = ["python312", "gcc", "pkg-config"]
+
+[phases.install]
+cmds = [
+  "pip install --no-cache-dir uv",
+  "uv venv .venv --python 3.12",
+  "uv sync --frozen --no-dev",
+]
+
+[start]
+cmd = "/app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*"
