@@ -1,12 +1,13 @@
 # Build config for Railway / nixpacks.
-# Forces Python 3.12 and uses `uv` for fast, deterministic dependency installs.
+# Uses `uv` straight from nixpkgs (not pip) so we don't depend on pip being
+# bundled with the Python derivation — many slim Python builds in nix don't
+# ship pip on $PATH.
 
 [phases.setup]
-nixPkgs = ["python312", "gcc", "pkg-config"]
+nixPkgs = ["python312", "uv"]
 
 [phases.install]
 cmds = [
-  "pip install --no-cache-dir uv",
   "uv venv .venv --python 3.12",
   "uv sync --frozen --no-dev",
 ]
