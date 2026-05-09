@@ -25,6 +25,7 @@ class PolicySource(str, Enum):
     seed = "seed"
     admin = "admin"
     ai_suggestor = "ai-suggestor"
+    google_workspace = "google-workspace"
 
 
 class Severity(str, Enum):

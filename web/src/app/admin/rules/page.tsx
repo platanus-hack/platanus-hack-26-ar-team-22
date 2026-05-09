@@ -6,6 +6,7 @@ import { getAdminSession } from "@/lib/admin-session";
 import { toRuleDTO } from "@/lib/policies";
 import { prisma } from "@/lib/prisma";
 import { RulesPanel } from "./_components/rules-panel";
+import { GdocImportForm } from "@/components/gdoc-import-form";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,14 @@ export default async function RulesPage() {
           no querés que salga; el modelo decide si el prompt la viola.
         </p>
       </header>
+
+      <div className="mb-10 border border-graphite-dark/20 p-6" style={{ borderRadius: "var(--radius)" }}>
+        <span className="mb-3 block font-mono text-xs uppercase tracking-wider text-graphite">
+          // importar desde Google Docs
+        </span>
+        <GdocImportForm />
+      </div>
+
       <RulesPanel initialRules={initialRules} />
     </section>
   );

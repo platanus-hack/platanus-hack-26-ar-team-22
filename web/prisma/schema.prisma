@@ -34,7 +34,8 @@ enum PolicyLayer {
 enum PolicySource {
   seed
   admin
-  ai_suggestor @map("ai-suggestor")
+  ai_suggestor     @map("ai-suggestor")
+  google_workspace @map("google-workspace")
 }
 
 enum Severity {
@@ -250,6 +251,7 @@ model RuleSuggestion {
   proposedSeverity    Severity         @default(medium) @map("proposed_severity")
   matchCount          Int              @default(0) @map("match_count") // matches retroactivos sobre interactions
   examples            Json             @default("[]") // [{traceId, promptRedacted, createdAt}]
+  sourceHint          String?          @map("source_hint") // "google_workspace" | null — distingue origen en la UI
   status              SuggestionStatus @default(pending)
   rejectReason        String?          @map("reject_reason")
   acceptedPolicyId    String?          @map("accepted_policy_id") @db.Uuid

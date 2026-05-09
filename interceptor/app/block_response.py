@@ -19,9 +19,16 @@ from .cascade import PolicyHit
 
 def _block_text(hit: PolicyHit) -> str:
     return (
-        f"🛡️ Tu request fue bloqueado por la política `{hit.slug}`. "
-        f"Detalle: {hit.rule}. "
-        "Si necesitás trabajar con datos sensibles reales, abrí un ticket con tu admin. — Tranquera"
+        f"Antes de continuar, hay algo que vale la pena tener en cuenta. "
+        f"Tu mensaje se cruza con la política **{hit.slug}** de tu organización:\n\n"
+        f"> {hit.rule}\n\n"
+        f"La idea no es frenarte sino asegurarnos de que el entregable quede alineado "
+        f"con lo que la empresa espera. Si reformulás el prompt sin incluir esa información, "
+        f"puedo procesarlo normalmente. Si el contexto es imprescindible para tu tarea, "
+        f"coordiná con tu admin.\n\n"
+        f"¿Querés que te ayude a reformularlo? Contame qué estás intentando hacer "
+        f"y lo armamos juntos respetando la política.\n\n"
+        f"— Tranquera"
     )
 
 
