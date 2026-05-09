@@ -1,6 +1,6 @@
 {
   "name": "tranquera",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Firewall de Claude Code corporativo. Login con Google + ANTHROPIC_BASE_URL en un comando.",
   "type": "module",
   "bin": {

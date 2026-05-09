@@ -18,7 +18,7 @@ import { dirname, join } from "node:path";
 import { stdout } from "node:process";
 
 const DEFAULT_APP_URL =
-  process.env.TRANQUERA_APP_URL ?? "http://localhost:3000";
+  process.env.TRANQUERA_APP_URL ?? "https://tranquera.vercel.app";
 const DEFAULT_PROXY_URL =
   process.env.TRANQUERA_PROXY_URL ??
   "https://platanus-hack-26-ar-team-22-production.up.railway.app";
