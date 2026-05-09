@@ -111,6 +111,32 @@ function isConfiguredInRc(rcPath) {
   return readFileSync(rcPath, "utf8").includes(MARKER);
 }
 
+// Setup writes a 2-line block (MARKER + the export). Logout removes both
+// lines and collapses the surrounding blank lines so the rc looks untouched.
+function removeFromRc(rcPath) {
+  if (!existsSync(rcPath)) return false;
+  const original = readFileSync(rcPath, "utf8");
+  if (!original.includes(MARKER)) return false;
+  const lines = original.split("\n");
+  const out = [];
+  let skipNext = false;
+  for (const line of lines) {
+    if (skipNext) {
+      skipNext = false;
+      continue;
+    }
+    if (line.trim() === MARKER) {
+      skipNext = true;
+      continue;
+    }
+    out.push(line);
+  }
+  let cleaned = out.join("\n").replace(/\n{3,}/g, "\n\n");
+  if (!original.endsWith("\n")) cleaned = cleaned.replace(/\n+$/, "");
+  writeFileSync(rcPath, cleaned);
+  return true;
+}
+
 // -------------------------------------------------------------
 // HTTP helpers
 // -------------------------------------------------------------
@@ -387,25 +413,46 @@ async function cmdWhoami() {
   console.log("");
 }
 
-async function cmdLogout() {
+async function cmdLogout(args) {
   const cfg = readConfig();
-  if (!cfg?.token) {
-    console.log(`  ${c("dim", "no había sesión activa")}`);
-    return;
+  const shell = detectShellConfig();
+  const hadSession = Boolean(cfg?.token);
+
+  let serverResult = { ok: true };
+  if (hadSession) {
+    // Best-effort: si el server no responde, igual limpiamos local — el config
+    // local es lo que importa para el dev. El token queda válido en server hasta
+    // que el admin lo revoque desde la UI, pero no se va a usar más desde acá.
+    serverResult = await postLogout(cfg.appUrl ?? DEFAULT_APP_URL, cfg.token);
   }
-  // Best-effort: si el server no responde, igual limpiamos local — el config
-  // local es lo que importa para el dev. El token queda válido en server hasta
-  // que el admin lo revoque desde la UI, pero no se va a usar más desde acá.
-  const result = await postLogout(cfg.appUrl ?? DEFAULT_APP_URL, cfg.token);
   clearConfig();
+
+  let rcCleaned = false;
+  if (!args?.keepRc && shell) {
+    rcCleaned = removeFromRc(shell.rcPath);
+  }
+
   console.log("");
-  if (result.ok) {
+  if (!hadSession) {
+    console.log(`  ${c("dim", "no había sesión activa")}`);
+  } else if (serverResult.ok) {
     console.log(`  ${c("green", "✓")} sesión cerrada y token revocado en el server`);
   } else {
     console.log(`  ${c("yellow", "⚠")} sesión local cerrada, pero no pude avisar al server`);
     console.log(`  ${c("dim", "  el token sigue activo en backend — pedile a tu admin que lo revoque si te preocupa")}`);
   }
-  console.log(`  ${c("dim", "el rc no se modifica — si querés sacar el proxy, borralo a mano")}`);
+
+  if (args?.keepRc) {
+    console.log(`  ${c("dim", "rc intacto (--keep-rc) — Claude Code va a seguir ruteando al proxy hasta que lo edites")}`);
+  } else if (rcCleaned) {
+    console.log(`  ${c("green", "✓")} export de ANTHROPIC_BASE_URL removida de ${shell.rcPath}`);
+    const unsetCmd = shell.name === "fish"
+      ? "set -e ANTHROPIC_BASE_URL"
+      : "unset ANTHROPIC_BASE_URL";
+    console.log(`  ${c("dim", `  para esta terminal, corré: ${unsetCmd}`)}`);
+  } else if (shell) {
+    console.log(`  ${c("dim", `el rc (${shell.rcPath}) no tenía el bloque de tranquera`)}`);
+  }
   console.log("");
 }
 
@@ -450,13 +497,16 @@ function cmdHelp() {
     setup     Login + configura ANTHROPIC_BASE_URL en tu shell rc.
     login     Fuerza un nuevo device flow (útil después de logout).
     whoami    Muestra a qué org / member estás vinculado.
-    logout    Revoca tu token y limpia ~/.tranquera/config.json.
+    logout    Revoca tu token, limpia ~/.tranquera/config.json y saca el
+              export de ANTHROPIC_BASE_URL del rc.
     status    Estado actual: rc + token + ping al proxy.
     help      Esta ayuda.
 
   Opciones:
-    --org-id <id>    Joinearse a esta org como dev (si no fuiste invitado por
-                     email). Tu admin lo puede compartir desde /admin/team.
+    --org-id <id>    (setup/login) Joinearse a esta org como dev (si no fuiste
+                     invitado por email). Tu admin lo comparte desde /admin/team.
+    --keep-rc        (logout) No tocar el rc — la export de
+                     ANTHROPIC_BASE_URL queda y la sacás a mano.
 
   Ejemplo:
     npx tranquera setup --org-id acme
@@ -474,7 +524,7 @@ function cmdHelp() {
 // -------------------------------------------------------------
 
 function parseArgs(argv) {
-  const out = { orgId: undefined };
+  const out = { orgId: undefined, keepRc: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--org-id" || a === "--org") {
@@ -484,6 +534,8 @@ function parseArgs(argv) {
       out.orgId = a.slice("--org-id=".length);
     } else if (a.startsWith("--org=")) {
       out.orgId = a.slice("--org=".length);
+    } else if (a === "--keep-rc") {
+      out.keepRc = true;
     }
   }
   if (out.orgId === "" || out.orgId === undefined) out.orgId = undefined;
