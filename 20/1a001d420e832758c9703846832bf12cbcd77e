@@ -1,0 +1,39 @@
+specs/06-pitch-demo.md
+  s_f14c9aff1730c5::t_4a3c9100db2444 81,83-92
+  s_f14c9aff1730c5::t_e15ccae983918e 108
+platanus-hack-project.json
+  s_f14c9aff1730c5::t_4f85c0e2cdf067 2-5
+identidad/design.md
+  s_f14c9aff1730c5::t_73e9cb65d65c07 1-263
+specs/04-admin-web.md
+  s_f14c9aff1730c5::t_7c184b48a3ca09 88-89,91
+specs/05-user-web.md
+  s_f14c9aff1730c5::t_060c9f09b3da85 48
+  s_f14c9aff1730c5::t_ed51a1a24c9ca9 156-159
+  s_f14c9aff1730c5::t_859e663b8a72f3 147
+specs/README.md
+  s_f14c9aff1730c5::t_d516bbd405c221 15-18,21
+specs/03-landing-page.md
+  s_f14c9aff1730c5::t_4d7ca419bb75dc 69-71
+  s_f14c9aff1730c5::t_506eed10dd5459 74,76,78-80,85
+  s_f14c9aff1730c5::t_05e4f2bc223a4a 101-102
+specs/00-constitution.md
+  s_f14c9aff1730c5::t_502150b7abd4c6 8-17
+  s_f14c9aff1730c5::t_e7823134e9b45b 116-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "201a001d420e832758c9703846832bf12cbcd77e",
+  "prompts": {},
+  "sessions": {
+    "s_f14c9aff1730c5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab262192-5f13-4091-9ae0-d0ce1693c600",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Christian-Rojas-Rodriguez <christianrojas.datascience@gmail.com>"
+    }
+  }
+}
