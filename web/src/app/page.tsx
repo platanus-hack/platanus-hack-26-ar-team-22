@@ -24,6 +24,7 @@ export default function HomePage() {
       <DemoSection />
       <ProblemSection />
       <HowItWorksSection />
+      <InstallSection />
       <TraceSection />
       <WhyLatamSection />
       <ManifestoSection />
@@ -48,6 +49,9 @@ function SiteHeader() {
           </a>
           <a href="#como-funciona" className="transition-colors hover:text-ink">
             // cómo funciona
+          </a>
+          <a href="#install" className="transition-colors hover:text-ink">
+            // install
           </a>
           <a href="#trace" className="transition-colors hover:text-ink">
             // trace
@@ -509,6 +513,90 @@ function ActionRow({
       <ActionPill action={action} />
       <h4 className="text-base font-semibold">{title}</h4>
       <p className="text-sm leading-relaxed text-graphite-dark">{desc}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Install — lo que el dev tipea para empezar a usar tranquera
+// ---------------------------------------------------------------------------
+
+function InstallSection() {
+  return (
+    <section id="install" className="w-full bg-paper-soft/40">
+      <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
+        <SectionHeading
+          tag="instalá tranquera"
+          title="Para tu dev, todo se reduce a un comando."
+          subtitle="Sin SDK nuevo, sin wrapper, sin re-entrenar a nadie. El proxy intercepta cada prompt, aplica las reglas de tu org y devuelve la respuesta normal de Claude. El dev sigue escribiendo `claude` igual que siempre."
+        />
+
+        <InstallTerminal />
+
+        <div className="mt-10 grid gap-6 md:grid-cols-3">
+          <InstallStep
+            n="01"
+            title="Detecta tu shell"
+            body="zsh, bash o fish. El CLI escribe la export en el rc correcto y verifica que no esté ya configurado."
+          />
+          <InstallStep
+            n="02"
+            title="Configura ANTHROPIC_BASE_URL"
+            body="Una variable estándar de Anthropic. Cero invasión: si te arrepentís, dos líneas en tu rc y volvés al estado anterior."
+          />
+          <InstallStep
+            n="03"
+            title="Verifica el proxy"
+            body="Pinguea /health del firewall. Si responde, tu próxima request de Claude Code ya pasa por tranquera."
+          />
+        </div>
+
+        <p className="mt-10 max-w-3xl font-mono text-xs leading-relaxed text-graphite">
+          // requiere node 18+ (que ya tenés si usás claude code).
+          compatible con linux, macos y wsl.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function InstallTerminal() {
+  return (
+    <div
+      className="rise overflow-hidden border border-graphite-dark/20 bg-ink"
+      style={{ borderRadius: "var(--radius)" }}
+    >
+      <div className="flex items-center justify-between border-b border-paper/10 px-5 py-3 font-mono text-[11px] uppercase tracking-wider text-paper/55">
+        <span>// terminal</span>
+        <span className="hidden md:inline">// onboarding · ~ 10 segundos</span>
+      </div>
+      <div className="px-6 py-7 font-mono text-sm leading-relaxed text-paper md:px-10 md:py-9 md:text-base">
+        <div className="flex items-baseline gap-3">
+          <span className="text-paper/45">$</span>
+          <span className="text-paper">npx tranquera setup</span>
+        </div>
+        <pre className="mt-5 whitespace-pre-wrap text-[13px] leading-relaxed text-paper/75 md:text-sm">
+{`  ▎ tranquera · setup
+  ├─ proxy  https://platanus-hack-26-ar-team-22-production.up.railway.app
+  ├─ shell  zsh
+  └─ rc     ~/.zshrc
+
+  · agregué la export a ~/.zshrc
+  · verificando proxy…  ok
+
+  Listo. Reabrí tu terminal y usá Claude Code igual que siempre.`}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+function InstallStep({ n, title, body }: { n: string; title: string; body: string }) {
+  return (
+    <div className="flex flex-col gap-2 border-t-2 border-ink pt-4">
+      <span className="font-mono text-sm text-graphite">{n} ·</span>
+      <h3 className="text-base font-semibold">{title}</h3>
+      <p className="text-sm leading-relaxed text-graphite-dark">{body}</p>
     </div>
   );
 }
