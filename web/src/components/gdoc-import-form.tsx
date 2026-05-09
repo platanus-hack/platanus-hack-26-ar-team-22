@@ -133,8 +133,7 @@ export function GdocImportForm() {
           // arrastrar archivo
         </span>
         <span className="max-w-md text-sm text-graphite-dark">
-          Soltá un PDF con texto seleccionable, o un TXT/Markdown/JSON/CSV para
-          leerlo directo. Máximo 12 MB.
+          Arrastrá un archivo acá o hacé clic para seleccionarlo
         </span>
         <input
           type="file"
