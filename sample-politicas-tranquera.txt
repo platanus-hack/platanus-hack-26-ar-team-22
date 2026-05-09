@@ -1,0 +1,22 @@
+Politicas institucionales para equipos tecnicos
+
+1. Datos de clientes y usuarios
+El equipo tecnico debe evitar pegar datos reales de clientes, usuarios o pacientes en asistentes AI. Para investigar bugs, se deben usar ejemplos anonimizados o datos sinteticos que mantengan la forma del problema sin exponer informacion personal.
+
+2. Credenciales y secretos
+No se deben compartir claves API, tokens, passwords, certificados privados ni archivos .env completos en prompts o chats con herramientas externas. Si hace falta pedir ayuda, se debe reemplazar cada secreto por un placeholder como [REDACTED_API_KEY].
+
+3. Codigo propietario
+Antes de enviar fragmentos extensos de codigo propietario a un asistente AI, el dev debe limitar el contexto a lo necesario para resolver la consulta. No se deben incluir modulos completos, logica de negocio sensible ni algoritmos internos si no son indispensables.
+
+4. Rutas internas e infraestructura
+Se recomienda no compartir rutas internas de repositorios, nombres de servidores, URLs privadas, nombres de buckets, nombres de bases de datos ni detalles de infraestructura productiva. Cuando sea necesario explicar un problema, usar nombres genericos como servicio-a, db-principal o bucket-interno.
+
+5. Estandares de implementacion
+Todo codigo nuevo del frontend debe usar TypeScript, componentes simples y patrones existentes del proyecto. No se deben introducir librerias nuevas sin justificar por que el stack actual no alcanza.
+
+6. Revision de cambios riesgosos
+Los cambios que afecten autenticacion, permisos, manejo de datos personales o reglas de seguridad deben revisarse con una persona del equipo antes de llegar a produccion. El objetivo es mantener trazabilidad y evitar regresiones silenciosas.
+
+7. Comunicacion con asistentes AI
+Cuando se use un asistente AI para pedir ayuda tecnica, el prompt debe explicar el objetivo, el error y el contexto minimo necesario. No se debe copiar informacion sensible por comodidad si puede describirse el problema de forma anonima.
