@@ -7,9 +7,11 @@ import { isValidEmail, type MemberDTO } from "@/lib/team";
 export function TeamPanel({
   initialMembers,
   currentEmail,
+  orgId,
 }: {
   initialMembers: MemberDTO[];
   currentEmail: string;
+  orgId: string;
 }) {
   const [members, setMembers] = useState(initialMembers);
   const [email, setEmail] = useState("");
@@ -65,8 +67,13 @@ export function TeamPanel({
   const admins = members.filter((m) => m.role === "admin");
   const devs = members.filter((m) => m.role === "dev");
 
+  const cliCommand = `npx tranquera setup --org-id ${orgId}`;
+
   return (
     <div className="flex flex-col gap-8">
+      {/* Comando para self-join via CLI */}
+      <CliInviteCard orgId={orgId} command={cliCommand} />
+
       {/* Form */}
       <form
         onSubmit={handleInvite}
@@ -74,7 +81,7 @@ export function TeamPanel({
         style={{ borderRadius: "var(--radius)" }}
       >
         <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-          // invitar dev
+          // invitar dev por email
         </span>
         <div className="flex flex-col gap-3 md:flex-row">
           <input
@@ -206,5 +213,74 @@ function StatusDot({ active }: { active: boolean }) {
         active ? "bg-emerald-500" : "bg-graphite/40"
       }`}
     />
+  );
+}
+
+function CliInviteCard({ orgId, command }: { orgId: string; command: string }) {
+  const [copied, setCopied] = useState<"command" | "org" | null>(null);
+
+  async function copy(value: string, kind: "command" | "org") {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      setTimeout(() => setCopied((c) => (c === kind ? null : c)), 1500);
+    } catch {
+      window.prompt("Copiá manualmente:", value);
+    }
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-4 border border-ink/30 bg-ink/[0.03] p-6"
+      style={{ borderRadius: "var(--radius)" }}
+    >
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="font-mono text-xs uppercase tracking-wider text-graphite">
+          // invitar dev por CLI
+        </span>
+        <span className="font-mono text-[11px] text-graphite">
+          // org-id ·{" "}
+          <button
+            type="button"
+            onClick={() => copy(orgId, "org")}
+            className="text-ink underline-offset-2 hover:underline"
+            title="copiar org-id"
+          >
+            {orgId}
+          </button>
+          {copied === "org" ? (
+            <span className="ml-2 text-emerald-600">copiado ✓</span>
+          ) : null}
+        </span>
+      </div>
+
+      <p className="text-sm leading-relaxed text-graphite-dark">
+        Compartile este comando a tu dev (slack, email, lo que sea). Lo corre
+        en su terminal, loguea con Google, y queda atribuido a tu org como{" "}
+        <strong>dev</strong>.
+      </p>
+
+      <div
+        className="flex items-center justify-between gap-3 border border-graphite-dark/20 bg-paper px-4 py-3"
+        style={{ borderRadius: "var(--radius)" }}
+      >
+        <code className="overflow-x-auto whitespace-nowrap font-mono text-sm text-ink">
+          {command}
+        </code>
+        <button
+          type="button"
+          onClick={() => copy(command, "command")}
+          className="shrink-0 bg-ink px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-paper transition-colors hover:bg-graphite-dark"
+          style={{ borderRadius: "var(--radius)" }}
+        >
+          {copied === "command" ? "copiado ✓" : "copiar"}
+        </button>
+      </div>
+
+      <p className="font-mono text-[11px] leading-relaxed text-graphite">
+        // si el dev nunca corrió el comando con --org-id y no fue invitado por
+        email, va a ver un error claro: &quot;no perteneces a ninguna org&quot;.
+      </p>
+    </div>
   );
 }

@@ -213,6 +213,10 @@ model CliDeviceCode {
   /// el CLI hace poll. El handler del poll lo borra apenas lo entrega.
   /// Después de eso, solo queda el hash en `cli_tokens`.
   secretToken   String?   @map("secret_token")
+  /// Org-id que el dev pasó al CLI con `--org-id`. Se usa al aprobar para
+  /// joinear al user a esa org como `dev` (si no tiene member previo).
+  /// Null = el user debe estar previamente invitado o no se aprueba.
+  orgInviteId   String?   @map("org_invite_id")
 
   member Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
 

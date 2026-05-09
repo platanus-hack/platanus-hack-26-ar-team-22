@@ -3,7 +3,7 @@
 /* eslint-disable react/jsx-no-comment-textnodes */
 import Link from "next/link";
 import { isAuthConfigured, signOut } from "@/auth";
-import { getAdminSession } from "@/lib/admin-session";
+import { ensureAdminSession } from "@/lib/admin-session";
 import { AdminNav } from "./_components/nav";
 
 export default async function AdminLayout({
@@ -11,7 +11,10 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getAdminSession();
+  // ensureAdminSession() onboardea al admin (crea org si no existe) en su
+  // primer hit a cualquier ruta /admin/*. Es el reemplazo de la rama de
+  // auto-create que sacamos de resolveOrgForUser.
+  const session = await ensureAdminSession();
   const email = session?.email ?? "—";
   const orgId = session?.orgId ?? "—";
 

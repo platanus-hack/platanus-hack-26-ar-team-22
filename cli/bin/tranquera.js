@@ -127,8 +127,13 @@ async function pingHealth(proxyUrl) {
   }
 }
 
-async function startDeviceFlow(appUrl) {
-  const res = await fetch(`${appUrl}/api/cli/device/start`, { method: "POST" });
+async function startDeviceFlow(appUrl, orgId) {
+  const init = {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(orgId ? { org_id: orgId } : {}),
+  };
+  const res = await fetch(`${appUrl}/api/cli/device/start`, init);
   if (!res.ok) {
     throw new Error(`backend devolvió ${res.status} en /device/start`);
   }
@@ -197,14 +202,16 @@ function openInBrowser(url) {
 // Device flow orchestrator (login)
 // -------------------------------------------------------------
 
-async function performDeviceFlow() {
+async function performDeviceFlow(orgId) {
   console.log("");
   console.log(`  ${c("bold", "▎ tranquera · login")}`);
-  console.log(`  └─ app  ${DEFAULT_APP_URL}`);
+  console.log(`  ├─ app   ${DEFAULT_APP_URL}`);
+  if (orgId) console.log(`  └─ org   ${orgId}`);
+  else console.log(`  └─ org   ${c("dim", "(ninguna — usá invitación por email o pasá --org-id)")}`);
   console.log("");
 
   process.stdout.write("  · iniciando device flow… ");
-  const start = await startDeviceFlow(DEFAULT_APP_URL);
+  const start = await startDeviceFlow(DEFAULT_APP_URL, orgId);
   console.log(c("green", "ok"));
 
   console.log("");
@@ -241,7 +248,7 @@ function composeProxyBaseUrl(proxyUrl, token) {
 // Commands
 // -------------------------------------------------------------
 
-async function cmdSetup() {
+async function cmdSetup(args) {
   const existing = readConfig();
   let session;
 
@@ -262,7 +269,7 @@ async function cmdSetup() {
   }
 
   if (!session) {
-    session = await performDeviceFlow();
+    session = await performDeviceFlow(args.orgId);
     writeConfig({
       version: 1,
       appUrl: session.appUrl,
@@ -310,8 +317,8 @@ async function cmdSetup() {
   console.log("");
 }
 
-async function cmdLogin() {
-  const session = await performDeviceFlow();
+async function cmdLogin(args) {
+  const session = await performDeviceFlow(args.orgId);
   writeConfig({
     version: 1,
     appUrl: session.appUrl,
@@ -401,7 +408,7 @@ function cmdHelp() {
   ${c("bold", "tranquera")} · firewall de Claude Code corporativo
 
   Uso:
-    npx tranquera <comando>
+    npx tranquera <comando> [opciones]
 
   Comandos:
     setup     Login + configura ANTHROPIC_BASE_URL en tu shell rc.
@@ -410,6 +417,13 @@ function cmdHelp() {
     logout    Revoca tu token y limpia ~/.tranquera/config.json.
     status    Estado actual: rc + token + ping al proxy.
     help      Esta ayuda.
+
+  Opciones:
+    --org-id <id>    Joinearse a esta org como dev (si no fuiste invitado por
+                     email). Tu admin lo puede compartir desde /admin/team.
+
+  Ejemplo:
+    npx tranquera setup --org-id acme
 
   Variables:
     TRANQUERA_APP_URL      URL del back-office (default: ${DEFAULT_APP_URL}).
@@ -420,10 +434,32 @@ function cmdHelp() {
 }
 
 // -------------------------------------------------------------
+// Args parser (mini, sin deps)
+// -------------------------------------------------------------
+
+function parseArgs(argv) {
+  const out = { orgId: undefined };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === "--org-id" || a === "--org") {
+      out.orgId = argv[i + 1];
+      i++;
+    } else if (a.startsWith("--org-id=")) {
+      out.orgId = a.slice("--org-id=".length);
+    } else if (a.startsWith("--org=")) {
+      out.orgId = a.slice("--org=".length);
+    }
+  }
+  if (out.orgId === "" || out.orgId === undefined) out.orgId = undefined;
+  return out;
+}
+
+// -------------------------------------------------------------
 // Entry
 // -------------------------------------------------------------
 
 const command = process.argv[2] ?? "help";
+const args = parseArgs(process.argv.slice(3));
 const handlers = {
   setup: cmdSetup,
   login: cmdLogin,
@@ -443,7 +479,7 @@ if (!handler) {
 }
 
 try {
-  await handler();
+  await handler(args);
 } catch (err) {
   console.error(c("red", `error: ${err instanceof Error ? err.message : err}`));
   process.exit(1);

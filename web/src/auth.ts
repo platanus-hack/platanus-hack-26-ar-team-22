@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 declare module "next-auth" {
   interface Session {
     user: {
+      id?: string;
       orgId?: string;
       memberId?: string;
       role?: "admin" | "dev";
@@ -23,6 +24,7 @@ declare module "next-auth" {
 // donde están declaradas realmente las interfaces.
 declare module "@auth/core/jwt" {
   interface JWT {
+    userId?: string;
     orgId?: string;
     memberId?: string;
     role?: "admin" | "dev";
@@ -35,9 +37,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     ...authConfig.callbacks,
     // El primer login dispara `user` poblado (el User recién creado por
-    // el adapter). Resolvemos org y guardamos en el JWT — los siguientes
-    // refreshes ya no tocan la DB.
+    // el adapter). Solo resolvemos membership EXISTENTE acá — la creación
+    // de org se delega a los call-sites (admin sign-up vive en
+    // ensureAdminSession, CLI join vive en /cli/connect).
+    //
+    // Si no hay membership, el JWT queda con orgId undefined y los
+    // call-sites se encargan: admin onboarding lo crea transparente, CLI
+    // muestra el error "no perteneces a ninguna org".
     async jwt({ token, user }) {
+      if (user?.id) token.userId = user.id;
       if (user?.email && user.id && !token.orgId) {
         try {
           const resolved = await resolveOrgForUser({
@@ -45,19 +53,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
             name: user.name,
           });
-          token.orgId = resolved.orgId;
-          token.memberId = resolved.memberId;
-          token.role = resolved.role;
+          if (resolved) {
+            token.orgId = resolved.orgId;
+            token.memberId = resolved.memberId;
+            token.role = resolved.role;
+          }
         } catch (err) {
-          // Si la resolución falla (ej. email sin domain), el JWT queda sin
-          // orgId y getAdminSession lo va a tratar como no logueado. Mejor
-          // que crashear el flujo de login entero.
           console.error("[auth] org resolution failed:", err);
         }
       }
       return token;
     },
     async session({ session, token }) {
+      if (token.userId) session.user.id = token.userId;
       if (token.orgId) session.user.orgId = token.orgId;
       if (token.memberId) session.user.memberId = token.memberId;
       if (token.role) session.user.role = token.role;

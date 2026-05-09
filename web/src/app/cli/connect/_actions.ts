@@ -2,13 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { generateCliToken, hashCliToken } from "@/lib/cli-tokens";
-import { getAdminSession } from "@/lib/admin-session";
+import { getAuthedUser } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 
 /**
  * Aprueba un device_code identificado por su user_code visible.
  * - Busca el device_code (debe estar pending y no vencido).
- * - Resuelve el member del usuario logueado.
+ * - Resuelve el member del usuario logueado vía userId (joinViaCli ya lo
+ *   creó al renderizar la página).
  * - Genera token plaintext + hash, persiste cli_token.
  * - Marca el device_code como approved con el secret_token plaintext
  *   guardado para que el CLI lo recoja en su próximo poll.
@@ -20,24 +21,20 @@ export async function approveDeviceCode(formData: FormData) {
   }
   const userCode = userCodeRaw.toUpperCase();
 
-  const session = await getAdminSession();
-  if (!session) {
+  const authed = await getAuthedUser();
+  if (!authed) {
     redirect(`/admin/login?callbackUrl=${encodeURIComponent(`/cli/connect?code=${userCode}`)}`);
   }
 
-  // Resolver el member del user logueado (queremos su id, no solo el email).
-  // session.email + session.orgId nos dan member único por la unique key
-  // [orgId, email] del schema.
+  // Buscamos el member por userId — el JWT puede no tener orgId todavía
+  // (recién se joineó vía joinViaCli en la misma página), pero la DB sí.
   const member = await prisma.member.findUnique({
-    where: {
-      orgId_email: {
-        orgId: session!.orgId,
-        email: session!.email,
-      },
-    },
+    where: { userId: authed!.userId },
   });
   if (!member) {
-    throw new Error("no encontré el member del session.user — ¿auth callback corrió?");
+    throw new Error(
+      "no encontré member para este userId — ¿el flujo joinViaCli falló silenciosamente?",
+    );
   }
 
   const code = await prisma.cliDeviceCode.findUnique({

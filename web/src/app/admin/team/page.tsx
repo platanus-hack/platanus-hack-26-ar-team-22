@@ -3,7 +3,7 @@
 // Google (lib/org-resolution.ts).
 /* eslint-disable react/jsx-no-comment-textnodes */
 
-import { getAdminSession } from "@/lib/admin-session";
+import { ensureAdminSession } from "@/lib/admin-session";
 import { prisma } from "@/lib/prisma";
 import { toMemberDTO } from "@/lib/team";
 import { TeamPanel } from "./_components/team-panel";
@@ -11,7 +11,7 @@ import { TeamPanel } from "./_components/team-panel";
 export const dynamic = "force-dynamic";
 
 export default async function TeamPage() {
-  const session = await getAdminSession();
+  const session = await ensureAdminSession();
   if (!session) return null;
 
   const rows = await prisma.member.findMany({
@@ -31,12 +31,17 @@ export default async function TeamPage() {
           Quién pasa por la tranquera de tu org.
         </h1>
         <p className="max-w-2xl text-graphite-dark">
-          Agregá a tus devs por email — el mismo que usan en Claude Code.
-          La próxima vez que corran <code className="font-mono text-sm">npx tranquera setup</code>{" "}
-          y loguéen con Google, quedan asociados a tu org.
+          Tenés dos formas de sumar devs: invitarlos por email (quedan
+          pre-asociados antes del primer login), o pasarles el comando con tu{" "}
+          <code className="font-mono text-sm">org-id</code> para que se
+          autoadhieran desde el CLI.
         </p>
       </header>
-      <TeamPanel initialMembers={initial} currentEmail={session.email} />
+      <TeamPanel
+        initialMembers={initial}
+        currentEmail={session.email}
+        orgId={session.orgId}
+      />
     </section>
   );
 }

@@ -3,6 +3,10 @@
 // no requiere auth. El backend genera device_code + user_code y los guarda
 // con status=pending. El user después los aprueba desde el browser
 // (post-login Google).
+//
+// Body opcional: { "org_id": "acme" } — si el dev corrió `npx tranquera
+// setup --org-id acme`, lo guardamos en el device code para joinearlo a
+// esa org cuando apruebe desde el browser.
 
 import {
   DEVICE_CODE_TTL_MS,
@@ -17,22 +21,29 @@ function appUrl(): string {
 }
 
 function proxyUrl(): string {
-  // El CLI necesita saber a qué proxy apuntar `ANTHROPIC_BASE_URL`. Lo
-  // exponemos en la respuesta de `start` para que el CLI no lo tenga que
-  // tener hardcodeado por ambiente.
   return (
     process.env.TRANQUERA_PROXY_URL ??
     "https://platanus-hack-26-ar-team-22-production.up.railway.app"
   );
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  let orgInviteId: string | null = null;
+  try {
+    const body = (await request.json()) as { org_id?: unknown };
+    if (typeof body?.org_id === "string" && body.org_id.trim()) {
+      orgInviteId = body.org_id.trim();
+    }
+  } catch {
+    // Body vacío o no-JSON: el CLI puede mandar POST sin body. No es error.
+  }
+
   const deviceCode = generateDeviceCode();
   const userCode = generateUserCode();
   const expiresAt = new Date(Date.now() + DEVICE_CODE_TTL_MS);
 
   await prisma.cliDeviceCode.create({
-    data: { deviceCode, userCode, expiresAt, status: "pending" },
+    data: { deviceCode, userCode, expiresAt, status: "pending", orgInviteId },
   });
 
   const verificationUri = `${appUrl()}/cli/connect?code=${encodeURIComponent(userCode)}`;

@@ -13,6 +13,7 @@
 
 import { cookies } from "next/headers";
 import { auth, isAuthConfigured } from "@/auth";
+import { createOrgForNewAdmin } from "@/lib/org-resolution";
 
 export const ADMIN_COOKIE = "admin_session";
 export const DEMO_ORG_ID = "demo";
@@ -34,9 +35,10 @@ export async function getAdminSession(): Promise<AdminSession | null> {
     const session = await auth();
     if (!session?.user?.email) return null;
     if (!session.user.orgId) {
-      // El JWT no tiene orgId todavía (ej. primer login en flight, o falló
-      // la resolución). Tratar como no logueado — el callback session lo
-      // va a poblar en el próximo request.
+      // El JWT no tiene orgId todavía. El admin layout debió haber corrido
+      // ensureAdminSession antes de renderizar; si llegamos acá sin org es
+      // porque el caller es una página que no quiere/puede onboardear (ej.
+      // /cli/connect, que tiene su propio flujo). Tratamos como no logueado.
       return null;
     }
     return {
@@ -51,4 +53,71 @@ export async function getAdminSession(): Promise<AdminSession | null> {
   const value = jar.get(ADMIN_COOKIE)?.value;
   if (value !== "demo") return null;
   return DEMO_SESSION;
+}
+
+/**
+ * Igual que getAdminSession, pero si el user logueó vía Google y todavía
+ * no tiene org, la crea automáticamente como admin owner. Solo se llama
+ * desde rutas /admin/* — el "admin sign-up" del web es exactamente esto.
+ *
+ * El JWT del request actual sigue sin tener orgId (NextAuth lo recalcula
+ * al próximo refresh), así que devolvemos un session sintético con la
+ * resolution recién creada.
+ */
+export async function ensureAdminSession(): Promise<AdminSession | null> {
+  const existing = await getAdminSession();
+  if (existing) return existing;
+
+  if (!isAuthConfigured()) return null;
+
+  const session = await auth();
+  if (!session?.user?.email) return null;
+
+  const userId = (session.user as { id?: string }).id;
+  if (!userId) return null;
+
+  const resolved = await createOrgForNewAdmin({
+    userId,
+    email: session.user.email,
+    name: session.user.name,
+  });
+
+  return {
+    orgId: resolved.orgId,
+    email: session.user.email,
+    name: session.user.name,
+    image: session.user.image,
+  };
+}
+
+export type AuthedUser = {
+  userId: string;
+  email: string;
+  name?: string | null;
+  image?: string | null;
+  /** Org actual si ya existe membership, null si todavía no se onboardeó. */
+  orgId: string | null;
+};
+
+/**
+ * Devuelve el user logueado vía Google sin requerir orgId. Útil para los
+ * call-sites que tienen que decidir qué hacer con un user sin org (ej.
+ * /admin/* hace onboarding, /cli/connect aplica join-via-org-id o rechaza).
+ */
+export async function getAuthedUser(): Promise<AuthedUser | null> {
+  if (!isAuthConfigured()) return null;
+
+  const session = await auth();
+  if (!session?.user?.email) return null;
+
+  const userId = (session.user as { id?: string }).id;
+  if (!userId) return null;
+
+  return {
+    userId,
+    email: session.user.email,
+    name: session.user.name,
+    image: session.user.image,
+    orgId: session.user.orgId ?? null,
+  };
 }

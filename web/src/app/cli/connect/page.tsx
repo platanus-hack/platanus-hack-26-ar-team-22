@@ -4,8 +4,9 @@
 /* eslint-disable react/jsx-no-comment-textnodes */
 
 import { redirect } from "next/navigation";
-import { auth, isAuthConfigured } from "@/auth";
-import { getAdminSession } from "@/lib/admin-session";
+import { isAuthConfigured } from "@/auth";
+import { getAuthedUser } from "@/lib/admin-session";
+import { joinViaCli } from "@/lib/org-resolution";
 import { prisma } from "@/lib/prisma";
 import { approveDeviceCode } from "./_actions";
 
@@ -35,19 +36,9 @@ export default async function CliConnectPage({
     );
   }
 
-  const session = await auth();
-  if (!session?.user) {
+  const authed = await getAuthedUser();
+  if (!authed) {
     redirect(`/admin/login?callbackUrl=${encodeURIComponent(`/cli/connect?code=${userCode}`)}`);
-  }
-
-  const adminSession = await getAdminSession();
-  if (!adminSession) {
-    return (
-      <ErrorScreen
-        title="Sesión incompleta"
-        body="Tu Google login no terminó de resolver tu org. Refrescá la página."
-      />
-    );
   }
 
   const code = await prisma.cliDeviceCode.findUnique({
@@ -70,14 +61,47 @@ export default async function CliConnectPage({
       />
     );
   }
-  // Nota: el chequeo de TTL contra el reloj actual lo hace el server action
-  // y el endpoint /poll. Acá solo confiamos en `status` para no llamar APIs
-  // impuras desde un Server Component (regla del React Compiler).
   if (code.status === "expired") {
     return (
       <ErrorScreen
         title="Código vencido"
         body="Pasaron más de 10 minutos desde que arrancaste el CLI. Corré `npx tranquera setup` de nuevo."
+      />
+    );
+  }
+
+  // Resolvemos la org del user respecto del device code:
+  // - Si ya tiene member → ese gana.
+  // - Si no, y el device code tiene org_invite_id → joinea como dev.
+  // - Si no → mostramos error "no perteneces".
+  const join = await joinViaCli({
+    userId: authed!.userId,
+    email: authed!.email,
+    name: authed!.name,
+    orgInviteId: code.orgInviteId ?? null,
+  });
+
+  if (!join.ok) {
+    if (join.error.kind === "no_invite") {
+      return (
+        <ErrorScreen
+          title="No perteneces a ninguna organización"
+          body={`No encontré ninguna invitación para ${join.error.email}. Pedile a tu admin que te invite por email desde /admin/team, o que te pase el comando con --org-id.`}
+        />
+      );
+    }
+    if (join.error.kind === "org_not_found") {
+      return (
+        <ErrorScreen
+          title="Org no encontrada"
+          body={`No existe la organización "${join.error.orgId}". Verificá el id con tu admin.`}
+        />
+      );
+    }
+    return (
+      <ErrorScreen
+        title="Ya perteneces a otra organización"
+        body={`Estás vinculado a "${join.error.currentOrgId}". Para cambiar de org, corré "npx tranquera logout" primero.`}
       />
     );
   }
@@ -91,9 +115,10 @@ export default async function CliConnectPage({
         ¿Vinculás esta terminal a tu cuenta?
       </h1>
       <p className="text-sm leading-relaxed text-graphite-dark">
-        Vas a quedar identificado como <strong>{adminSession.email}</strong> en
-        la org <strong>{adminSession.orgId}</strong>. Cada prompt de Claude Code
-        que pase por la tranquera va a quedar atribuido a vos.
+        Vas a quedar identificado como <strong>{authed!.email}</strong> en la
+        org <strong>{join.resolution.orgId}</strong> con rol{" "}
+        <strong>{join.resolution.role}</strong>. Cada prompt de Claude Code que
+        pase por la tranquera va a quedar atribuido a vos.
       </p>
 
       <div
