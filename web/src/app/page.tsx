@@ -128,7 +128,7 @@ function Hero() {
             <span aria-hidden className="mr-2 text-paper">
               +
             </span>
-            tranquera · operators-first, not bypassed
+            tranquera · devs · organización · alineación
           </span>
           <span className="hidden items-center gap-2 font-mono text-[11px] uppercase tracking-[0.22em] text-paper/55 md:inline-flex">
             <span
@@ -155,8 +155,9 @@ function Hero() {
           className="rise mt-10 max-w-2xl text-lg leading-relaxed text-paper/80 md:text-xl"
           style={{ animationDelay: "240ms" }}
         >
-          El firewall de Claude Code que tu compliance officer va a aprobar.
-          Reglas no-code, redacción en runtime y auditoría completa.
+          La capa de alineamiento entre tu equipo y Claude Code. Los LLMs no
+          tienen contexto organizacional por defecto — con Tranquera, siempre
+          lo tienen.
         </p>
 
         {/* CTAs */}
@@ -267,7 +268,7 @@ function ProblemSection() {
       tag: "01 · credencial",
       title: "Leak de AWS key",
       prompt: "ayudame a debuggear esto: AKIAIOSFODNN7EXAMPLE",
-      consequence: "Tu access key sale del perímetro y queda en logs externos.",
+      consequence: "El dev no sabe que esto viola la política de credenciales. Tranquera lo detecta antes de que llegue al modelo.",
       action: "BLOCK",
       rule: "aws-access-key",
     },
@@ -275,7 +276,7 @@ function ProblemSection() {
       tag: "02 · cliente",
       title: "Mención de cliente real",
       prompt: "escribime un email para Acme Corp explicando el bug",
-      consequence: "Datos comerciales identificables salen sin mediación.",
+      consequence: "El dev no tenía forma de saber que mencionar ese cliente estaba fuera de policy. Tranquera lo señala.",
       action: "REDACT",
       rule: "client-name",
     },
@@ -283,7 +284,7 @@ function ProblemSection() {
       tag: "03 · secreto",
       title: "Paste accidental de .env",
       prompt: "no funciona el .env: DATABASE_URL=postgres://admin:Pa$$…",
-      consequence: "Credenciales productivas viajan en un prompt cualquiera.",
+      consequence: "Un paste accidental que el dev no notó. Tranquera alinea la intención con la política antes de que llegue a Anthropic.",
       action: "BLOCK",
       rule: "dotenv-paste",
     },
@@ -297,8 +298,8 @@ function ProblemSection() {
       <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
         <SectionHeading
           tag="el problema"
-          title="Tus devs usan Claude Code. Vos no controlás qué pegan en cada prompt."
-          subtitle="Sin un punto de control intermedio, cada credencial, nombre de cliente o snippet propietario que el dev tipea va directo a Anthropic. Tranquera se mete entre los dos."
+          title="Tus devs usan Claude Code. Sin contexto de las políticas de la org, cualquier prompt puede estar desalineado sin que nadie lo sepa."
+          subtitle="Sin un punto de alineamiento intermedio, el dev opera a ciegas respecto de las políticas de la org. Tranquera registra el desvío, informa al dev y mantiene trazabilidad completa."
         />
         <div className="grid gap-6 md:grid-cols-3">
           {cases.map((c) => (
@@ -623,8 +624,8 @@ function TraceSection() {
       <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
         <SectionHeading
           tag="trace"
-          title="Cada decisión es auditable. El dev ve por qué."
-          subtitle="Devolver un Message sintético en vez de un 403 no es casualidad. Claude Code lo muestra como respuesta del modelo y el dev entiende qué pasó sin ver un error de red."
+          title="El dev sabe dónde se desalineó. Cada decisión, explicada."
+          subtitle="Devolver un Message sintético en vez de un 403 no es casualidad. El dev entiende qué política aplica y cómo realinearse — sin ver un error de red, sin perder el contexto de trabajo."
         />
         <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
           <TraceCard
@@ -654,12 +655,13 @@ function TraceSection() {
                 <KvLine k="x-team22-action" v="BLOCK" theme="dark" />
                 <KvLine k="stop_reason" v="team22_blocked" theme="dark" />
                 <div className="mt-4 break-words border border-graphite-dark p-3 font-mono text-xs leading-relaxed text-paper">
-                  Tu request fue bloqueado por la política{" "}
+                  Tu prompt se alejó de la política{" "}
                   <span className="text-paper underline underline-offset-2">
                     aws-access-key
                   </span>
-                  . Detectamos un patrón de AWS Secret Access Key. Si necesitás
-                  trabajar con credenciales reales, abrí un ticket con tu admin.
+                  : detectamos un patrón de AWS Secret Access Key. Para trabajar
+                  con credenciales reales dentro del marco de la org, abrí un
+                  ticket con tu admin.
                 </div>
                 <div className="mt-3 flex items-center gap-3 font-mono text-[11px] text-graphite">
                   <span>// total · 9ms</span>
@@ -806,12 +808,12 @@ function ManifestoSection() {
             // manifiesto
           </span>
           <p className="max-w-3xl text-2xl font-medium leading-snug md:text-3xl">
-            No es un escudo. No es una advertencia. Es una{" "}
+            No es vigilancia. No es un escudo. Es el punto donde el dev, la
+            org y el modelo quedan{" "}
             <em className="not-italic underline decoration-graphite underline-offset-[10px]">
-              aduana silenciosa
+              alineados
             </em>{" "}
-            que aplica las reglas de la empresa sin interrumpir el ritmo de
-            quien escribe.
+            — sin interrumpir el ritmo de quien escribe.
           </p>
         </div>
         <div className="grid gap-10 md:grid-cols-3">
@@ -903,7 +905,7 @@ function SiteFooter() {
           <div className="flex flex-col gap-3">
             <Wordmark />
             <p className="max-w-md text-sm leading-relaxed text-graphite-dark">
-              Tranquera intercepta cada prompt antes de que el modelo responda.
+              Tranquera alinea al dev, la org y el modelo. Un paso controlado entre la intención y la respuesta.
             </p>
           </div>
           <p className="max-w-md font-mono text-xs leading-relaxed text-graphite">
