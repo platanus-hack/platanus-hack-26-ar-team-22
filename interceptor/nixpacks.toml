@@ -1,0 +1,16 @@
+# Build config for Railway / nixpacks.
+# Uses `uv` straight from nixpkgs (not pip) so we don't depend on pip being
+# bundled with the Python derivation — many slim Python builds in nix don't
+# ship pip on $PATH.
+
+[phases.setup]
+nixPkgs = ["python312", "uv"]
+
+[phases.install]
+cmds = [
+  "uv venv .venv --python 3.12",
+  "uv sync --frozen --no-dev",
+]
+
+[start]
+cmd = "/app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*"

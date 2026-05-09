@@ -1,0 +1,29 @@
+{
+  "name": "tranquera",
+  "version": "0.1.0",
+  "description": "Firewall de Claude Code corporativo. Configura ANTHROPIC_BASE_URL en un comando.",
+  "type": "module",
+  "bin": {
+    "tranquera": "./bin/tranquera.js"
+  },
+  "files": [
+    "bin"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "anthropic",
+    "firewall",
+    "policy",
+    "compliance",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/platanus-hack/platanus-hack-26-ar-team-22.git"
+  },
+  "homepage": "https://github.com/platanus-hack/platanus-hack-26-ar-team-22#readme"
+}
