@@ -10,8 +10,13 @@
  * no acá.
  */
 
-import 'dotenv/config';
+import { config } from 'dotenv';
 import { defineConfig, env } from 'prisma/config';
+
+// Cargamos en orden Next.js: `.env.local` gana sobre `.env`.
+// `config()` no overridea por default, así que el primero gana.
+config({ path: '.env.local' });
+config({ path: '.env' });
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',

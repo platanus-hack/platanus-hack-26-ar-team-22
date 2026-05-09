@@ -100,9 +100,11 @@ SUGGESTOR_LOOKBACK_DAYS=3
 
     "db:up":          "docker compose -f ../docker-compose.yml up -d",
     "db:down":        "docker compose -f ../docker-compose.yml down",
-    "db:migrate":     "prisma migrate dev",
+    "db:migrate":     "prisma migrate deploy",      // aplica migrations existentes (no interactivo)
+    "db:migrate:dev": "prisma migrate dev",         // crea nuevas migrations (puede pedir input)
     "db:reset":       "prisma migrate reset",
     "db:studio":      "prisma studio",
+    "db:generate":    "prisma generate",
 
     "seed:vdb":       "tsx scripts/seed-vdb.ts",
     "suggestor:run":  "tsx scripts/run-suggestor.ts",
