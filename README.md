@@ -51,40 +51,16 @@ Tranquera **no es un escudo ni una alarma**. Es una aduana silenciosa, siempre e
 
 ## Las 4 layers en una imagen
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  LAYER 4 — AI Suggestor                                     │
-│  Después de N días, propone reglas nuevas a partir de logs. │
-│  Cluster + Haiku → approval queue en /admin/suggestions.    │
-└─────────────────────────────────────────────────────────────┘
-                            ▲    rules synced
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  LAYER 3 — Admin Backoffice (Next.js 16)                    │
-│  · Visual rule builder (no-code)                            │
-│  · /admin/events       — feed real-time, atribución por dev │
-│  · /admin/rules        — CRUD reglas regex + lenguaje natural│
-│  · /admin/analytics    — métricas agregadas (7d) + top reglas│
-│  · /admin/team         — invitaciones, roles, last-seen     │
-│  · /admin/suggestions  — approval queue del Suggestor       │
-└─────────────────────────────────────────────────────────────┘
-                            ▲    SQL compartido
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  LAYER 2 — Interceptor Engine (FastAPI · Python 3.12)       │
-│  · Compatible con Anthropic Messages API                    │
-│  · Cascada: Regex (~5ms) → Pattern (~20ms) → Haiku (~150ms) │
-│  · Acciones: BLOCK / REDACT / WARN / LOG                    │
-│  · Atribución por dev via path-based token                  │
-│  · <200 ms overhead p50                                     │
-└─────────────────────────────────────────────────────────────┘
-                            ▲    HTTPS · ANTHROPIC_BASE_URL
-                            ▼
-┌─────────────────────────────────────────────────────────────┐
-│  LAYER 1 — Claude Code (developer's machine)                │
-│  Onboarding: npx tranquera setup → device flow Google →     │
-│  shell rc con ANTHROPIC_BASE_URL=<proxy>/cli/<token>.       │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart BT
+  L1["LAYER 1 · Claude Code (developer machine)<br/>npx tranquera setup → device flow Google →<br/>shell rc con ANTHROPIC_BASE_URL=&lt;proxy&gt;/cli/&lt;token&gt;"]
+  L2["LAYER 2 · Interceptor Engine (FastAPI · Python 3.12)<br/>Cascada Regex → Pattern → Haiku · &lt;200 ms p50<br/>Acciones BLOCK · REDACT · WARN · LOG<br/>Atribución por dev via path-based token"]
+  L3["LAYER 3 · Admin Backoffice (Next.js 16)<br/>Visual rule builder (no-code)<br/>/admin/events · /rules · /analytics · /team · /suggestions"]
+  L4["LAYER 4 · AI Suggestor<br/>Cron diario + manual trigger<br/>Haiku propone reglas a partir de LOGs → approval queue"]
+
+  L1 -->|HTTPS · ANTHROPIC_BASE_URL| L2
+  L2 <-->|SQL compartido| L3
+  L3 <-->|rules synced ↔ sugerencias| L4
 ```
 
 Las cuatro layers comparten una sola base de datos (Postgres + `pgvector`). El schema canónico vive en `web/prisma/schema.prisma` — el interceptor lee y escribe ahí pero **no** corre migraciones, así no hay dos fuentes de verdad.
@@ -106,38 +82,43 @@ Las acciones viajan como literal strings en JSON y en DB (`"BLOCK" | "REDACT" | 
 
 ## Anatomía de un request
 
-```
-                     [ dev escribe en Claude Code ]
-                                    │
-                                    ▼
-            POST /cli/{token}/v1/messages   ← path-based attribution
-                                    │
-        ┌───────────────────────────┼────────────────────────────┐
-        │              cascada de detección  (<200 ms p50)        │
-        │                                                          │
-        │   Layer 1 · Regex            ~5  ms                      │
-        │      ├─ match → action → fin                             │
-        │      └─ no match ↓                                       │
-        │                                                          │
-        │   Layer 2 · Pattern          ~20 ms        (roadmap)    │
-        │      ├─ match → action → fin                             │
-        │      └─ no match ↓                                       │
-        │                                                          │
-        │   Layer 3 · Haiku judge      ~150 ms                     │
-        │      ├─ flag  → action → fin                             │
-        │      └─ pass  ↓                                          │
-        └───────────────────────────┬────────────────────────────┘
-                                    ▼
-                       BLOCK   ───►  Message sintético al dev
-                       REDACT  ───►  forward con secrets enmascarados
-                       WARN    ───►  forward + flag al admin
-                       LOG     ───►  forward 1:1
-                                    │
-                                    ▼
-                            api.anthropic.com
-                                    │
-                                    ▼
-                  respuesta vuelve al dev sin alterar
+```mermaid
+flowchart TB
+  Req(["dev escribe en Claude Code<br/>POST /cli/{token}/v1/messages"])
+  L1{"Layer 1 · Regex<br/>~5 ms"}
+  L2{"Layer 2 · Pattern<br/>~20 ms · roadmap"}
+  L3{"Layer 3 · Haiku judge<br/>~150 ms"}
+  Decide["acción ganadora<br/>BLOCK ▸ REDACT ▸ WARN ▸ LOG"]
+
+  Block["BLOCK<br/>Message sintético al dev"]
+  Redact["REDACT<br/>forward con secrets enmascarados"]
+  Warn["WARN<br/>forward + flag en /admin/events"]
+  Log["LOG<br/>forward 1:1"]
+
+  Anth[("api.anthropic.com")]
+  Resp(["respuesta al dev"])
+  DB[("interactions<br/>traceId · org · member · hits · latency")]
+
+  Req --> L1
+  L1 -- match --> Decide
+  L1 -- no match --> L2
+  L2 -- match --> Decide
+  L2 -- no match --> L3
+  L3 -- hit --> Decide
+  L3 -- pass --> Decide
+
+  Decide --> Block
+  Decide --> Redact
+  Decide --> Warn
+  Decide --> Log
+
+  Block --> Resp
+  Redact --> Anth
+  Warn --> Anth
+  Log --> Anth
+  Anth --> Resp
+
+  Decide -. persiste .-> DB
 ```
 
 La cascada **respeta presupuesto**: cuanto más cara la capa, más tarde se invoca, y solo si las baratas no decidieron. La mayoría de prompts se resuelve en regex (~5 ms); solo lo ambiguo paga el costo del LLM.
@@ -219,23 +200,15 @@ Los primeros días el admin define las reglas obvias: las regex de credenciales,
 
 El Suggestor (Layer 4) cierra ese loop:
 
-```
-interactions LOG (últimos N días, default 7)   ── hasta 80 prompts
-            │
-            ▼
-una sola call a Haiku 4.5 con prompt caching:
-  system: "sos un asistente de seguridad…"
-  user:   numerated list of redacted prompts
-            │
-            ▼
-Haiku devuelve hasta 5 sugerencias estructuradas
-  { slug, domain, layer, default_action, severity,
-    pattern?, rule, reasoning, match_indices[] }
-            │
-            ▼
-INSERT INTO rule_suggestions  ──►  /admin/suggestions
-                                   approval queue
-                                   (humano in the loop, siempre)
+```mermaid
+flowchart TB
+  Logs[("interactions LOG<br/>últimos 7 días · hasta 80 prompts")]
+  Haiku["Haiku 4.5 con prompt caching<br/>system: sos un asistente de seguridad…<br/>user: numerated list of redacted prompts"]
+  Sug["hasta 5 sugerencias estructuradas<br/>slug · domain · layer · default_action<br/>severity · pattern? · rule · reasoning · match_indices"]
+  DB[("rule_suggestions")]
+  Queue["/admin/suggestions<br/>approval queue<br/>humano in the loop, siempre"]
+
+  Logs --> Haiku --> Sug --> DB --> Queue
 ```
 
 El admin recibe *"5 cosas que tus devs siguen pegando que tal vez no deberían"*, con `match_count` retroactivo y razonamiento. El Suggestor **nunca activa reglas por sí solo** — siempre pasa por aprobación.
