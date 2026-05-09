@@ -1,0 +1,45 @@
+web/public/logo.svg
+  s_4235fa73d6112c::t_eaa9709f46cca3 1-3
+web/src/app/components/network-background.tsx
+  s_4235fa73d6112c::t_e1bbaac4e88a97 1-31
+web/src/app/components/how-it-works.tsx
+  s_4235fa73d6112c::t_906299ebb4ca9c 1-163
+web/.npmrc
+  s_4235fa73d6112c::t_2ac85a95be1ade 1,4-6
+  s_4235fa73d6112c::t_ae97160f8f2fb3 2-3
+web/src/app/components/features.tsx
+  s_4235fa73d6112c::t_aad297d5051218 1-114
+web/src/app/components/waitlist-cta.tsx
+  s_4235fa73d6112c::t_054933853fb95d 1-95
+web/src/app/components/footer.tsx
+  s_4235fa73d6112c::t_ca1d78581f84ed 1-86
+web/src/app/components/terminal-demo.tsx
+  s_4235fa73d6112c::t_506121dd946f65 1-388
+web/src/app/components/tranquera-logo.tsx
+  s_4235fa73d6112c::t_b7929d3574367e 1-18
+web/src/app/components/nav.tsx
+  s_4235fa73d6112c::t_86484b39576cee 1-135
+web/package.json
+  s_4235fa73d6112c::t_17cc6bb42d12a6 26
+web/src/app/components/hero.tsx
+  s_4235fa73d6112c::t_42dedd1e29bb94 1-139
+web/src/app/globals.css
+  s_4235fa73d6112c::t_3079dcf15f0fa0 80-109
+  s_4235fa73d6112c::t_1a3db6c26cb28f 10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "376993618570200a06a6e16e81c5718676d6b058",
+  "prompts": {},
+  "sessions": {
+    "s_4235fa73d6112c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34b3e67a-d90d-4ead-bff1-c58601c66bb3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Christian-Rojas-Rodriguez <christianrojas.datascience@gmail.com>"
+    }
+  }
+}
