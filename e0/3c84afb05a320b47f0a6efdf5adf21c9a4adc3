@@ -1,0 +1,54 @@
+"identidad/App _ ink.html"
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 1-1190
+"identidad/App _ beam.html"
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 1-1190
+identidad/Construcci_n.html
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 1-1190
+"identidad/T2 _ Graphite.html"
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 1-1190
+"identidad/App _ paper.html"
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 1-1190
+specs/README.md
+  s_f14c9aff1730c5::t_17a3311093f608 34-36
+  s_f14c9aff1730c5::t_419637eac65477 1,3,5-6
+specs/06-pitch-demo.md
+  s_f14c9aff1730c5::t_57cfbc52e5c799 97,102-107
+specs/03-landing-page.md
+  s_f14c9aff1730c5::t_d7df469091304a 69-71,74,76-80,87
+  s_f14c9aff1730c5::t_bba573714dcc89 115-116
+identidad/Manifesto.html
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 1-1190
+"identidad/Hero _ Graphite.html"
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 1-1190
+platanus-hack-project.json
+  s_f14c9aff1730c5::t_026fcb4042f896 4
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 2-3,5
+identidad/design.md
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 1-178,180,182-183,188-189,193-201,204-207,209-266
+  s_f14c9aff1730c5::t_cfadd666813065 208
+  s_f14c9aff1730c5::t_e4eac01d6ce109 179,181,184-187,190-192
+  s_f14c9aff1730c5::t_04896a73612353 202-203
+"identidad/T2 _ lockup.html"
+  s_f14c9aff1730c5::t_e1f0fdfe4b7192 1-1190
+specs/04-admin-web.md
+  s_f14c9aff1730c5::t_e316243f0fb19d 96-98
+specs/00-constitution.md
+  s_f14c9aff1730c5::t_4f574329cadddb 195-196
+  s_f14c9aff1730c5::t_3f14d005b45068 8-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "e03c84afb05a320b47f0a6efdf5adf21c9a4adc3",
+  "prompts": {},
+  "sessions": {
+    "s_f14c9aff1730c5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab262192-5f13-4091-9ae0-d0ce1693c600",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Christian-Rojas-Rodriguez <christianrojas.datascience@gmail.com>"
+    }
+  }
+}
