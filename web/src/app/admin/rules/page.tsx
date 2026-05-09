@@ -38,7 +38,7 @@ export default async function RulesPage() {
 
       <div className="mb-10 border border-graphite-dark/20 p-6" style={{ borderRadius: "var(--radius)" }}>
         <span className="mb-3 block font-mono text-xs uppercase tracking-wider text-graphite">
-          // importar desde Google Docs
+          // importar contexto
         </span>
         <GdocImportForm />
       </div>

@@ -36,6 +36,15 @@ const ACTION_STYLES: Record<string, string> = {
   LOG: "bg-zinc-500/10 text-zinc-700",
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  google_workspace: "gdoc",
+  google_doc: "gdoc",
+  drive_pdf: "drive pdf",
+  drive_file: "drive file",
+  pdf: "pdf",
+  file: "archivo",
+};
+
 type SuggestorRunResult = {
   ok: boolean;
   analyzed?: number;
@@ -63,8 +72,8 @@ export function SuggestionsPanel({
       const rows: Suggestion[] = data.suggestions;
       startTransition(() =>
         setSuggestions([
-          ...rows.filter((r) => r.sourceHint === "google_workspace"),
-          ...rows.filter((r) => r.sourceHint !== "google_workspace"),
+          ...rows.filter((r) => r.sourceHint !== null),
+          ...rows.filter((r) => r.sourceHint === null),
         ])
       );
     }
@@ -157,7 +166,7 @@ export function SuggestionsPanel({
         </span>
         {pending.length === 0 ? (
           <p className="font-mono text-xs text-graphite">
-            // sin sugerencias pendientes. importá un Google Doc desde{" "}
+            // sin sugerencias pendientes. importá un documento desde{" "}
             <a href="/admin/rules" className="underline">
               reglas
             </a>
@@ -207,9 +216,9 @@ function SuggestionCard({
           {s.proposedSlug}
         </span>
 
-        {s.sourceHint === "google_workspace" && (
+        {s.sourceHint && (
           <span className="border border-graphite-dark/30 px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-wider text-graphite">
-            // gdoc
+            // {SOURCE_LABELS[s.sourceHint] ?? s.sourceHint}
           </span>
         )}
 

@@ -6,6 +6,10 @@ import { SuggestionsPanel } from "./_components/suggestions-panel";
 
 export const dynamic = "force-dynamic";
 
+type SuggestionRow = {
+  sourceHint: string | null;
+};
+
 export default async function SuggestionsPage() {
   const session = await getAdminSession();
   if (!session) return null;
@@ -15,10 +19,10 @@ export default async function SuggestionsPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  // gdoc suggestions first, then AI suggestor, preserving createdAt desc within each group
+  // Imported document suggestions first, then AI suggestor, preserving createdAt desc within each group
   const sorted = [
-    ...rows.filter((r) => r.sourceHint === "google_workspace"),
-    ...rows.filter((r) => r.sourceHint !== "google_workspace"),
+    ...rows.filter((r: SuggestionRow) => r.sourceHint !== null),
+    ...rows.filter((r: SuggestionRow) => r.sourceHint === null),
   ];
 
   return (
@@ -31,7 +35,7 @@ export default async function SuggestionsPage() {
           Cola de aprobación.
         </h1>
         <p className="max-w-2xl text-graphite-dark">
-          Reglas propuestas por el AI Suggestor o importadas desde Google Docs.
+          Reglas propuestas por el AI Suggestor o importadas desde documentos.
           Aceptar las convierte en políticas activas; el proxy las aplica al
           próximo request.
         </p>

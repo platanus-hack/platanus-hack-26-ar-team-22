@@ -1,10 +1,21 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { PDFParse } from 'pdf-parse'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { getAdminSession } from '@/lib/admin-session'
 
 const MAX_DOC_CHARS = 30_000
+const MAX_UPLOAD_BYTES = 12 * 1024 * 1024
+const TEXT_MIME_TYPES = new Set([
+  'text/plain',
+  'text/markdown',
+  'text/csv',
+  'application/json',
+  'application/xml',
+])
+
+export const runtime = 'nodejs'
 
 const EXTRACTION_SYSTEM = `Sos un asistente que digitaliza políticas institucionales de documentos corporativos para que el equipo técnico las reciba como contexto mientras trabaja con un asistente AI. El objetivo no es bloquear sino informar: cada política que extraés se convierte en una regla que Tranquera puede compartir con el dev en el momento oportuno, ayudándolo a entregar el mejor trabajo posible dentro de los lineamientos de la empresa. Las políticas pueden cubrir cualquier área: tecnología, código, comunicación, cultura, objetivos estratégicos, seguridad, legal, o cualquier otra directiva que un dev deba tener presente. Respondé SOLO con JSON válido, sin markdown ni bloques de código.`
 
@@ -39,9 +50,33 @@ const PolicySchema = z.object({
 
 const HaikuResponseSchema = z.object({ policies: z.array(PolicySchema) })
 
+type CreatedSuggestion = {
+  id: string
+  proposedSlug: string
+  proposedDomain: string
+  proposedRule: string
+  proposedAction: string
+  proposedSeverity: string
+}
+
 function extractDocId(url: string): string | null {
   const match = url.match(/\/document\/d\/([a-zA-Z0-9_-]+)/)
   return match?.[1] ?? null
+}
+
+function extractDriveFileId(url: string): string | null {
+  const patterns = [
+    /\/file\/d\/([a-zA-Z0-9_-]+)/,
+    /[?&]id=([a-zA-Z0-9_-]+)/,
+    /\/open\?id=([a-zA-Z0-9_-]+)/,
+  ]
+
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match?.[1]) return match[1]
+  }
+
+  return null
 }
 
 async function fetchDocText(docId: string): Promise<{ text: string; truncated: boolean }> {
@@ -59,6 +94,97 @@ async function fetchDocText(docId: string): Promise<{ text: string; truncated: b
   return { text: raw.slice(0, MAX_DOC_CHARS), truncated: raw.length > MAX_DOC_CHARS }
 }
 
+async function fetchDriveFile(fileId: string): Promise<{ bytes: ArrayBuffer; contentType: string; name: string }> {
+  const res = await fetch(`https://drive.google.com/uc?export=download&id=${fileId}`, {
+    redirect: 'follow',
+  })
+
+  if (!res.ok) throw new Error('private_or_not_found')
+
+  const contentType = (res.headers.get('content-type') ?? '').split(';')[0]
+  if (contentType.includes('text/html')) throw new Error('private_or_not_found')
+
+  const name =
+    res.headers
+      .get('content-disposition')
+      ?.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i)?.[1] ?? 'drive-file'
+
+  return { bytes: await res.arrayBuffer(), contentType, name: decodeURIComponent(name) }
+}
+
+function isPdf(contentType: string, name: string): boolean {
+  return contentType === 'application/pdf' || name.toLowerCase().endsWith('.pdf')
+}
+
+function isTextLike(contentType: string, name: string): boolean {
+  const lowerName = name.toLowerCase()
+  return (
+    TEXT_MIME_TYPES.has(contentType) ||
+    lowerName.endsWith('.txt') ||
+    lowerName.endsWith('.md') ||
+    lowerName.endsWith('.markdown') ||
+    lowerName.endsWith('.json') ||
+    lowerName.endsWith('.csv')
+  )
+}
+
+function truncateText(raw: string): { text: string; truncated: boolean } {
+  return { text: raw.slice(0, MAX_DOC_CHARS), truncated: raw.length > MAX_DOC_CHARS }
+}
+
+async function extractPdfText(bytes: ArrayBuffer): Promise<string> {
+  const parser = new PDFParse({ data: Buffer.from(bytes) })
+  try {
+    const result = await parser.getText()
+    return result.text
+  } catch {
+    throw new Error('pdf_parse_failed')
+  } finally {
+    await parser.destroy()
+  }
+}
+
+async function extractTextFromFile(
+  bytes: ArrayBuffer,
+  contentType: string,
+  name: string
+): Promise<{ text: string; truncated: boolean; sourceKind: 'pdf' | 'file' }> {
+  if (bytes.byteLength > MAX_UPLOAD_BYTES) throw new Error('file_too_large')
+
+  if (isPdf(contentType, name)) {
+    const text = await extractPdfText(bytes)
+    if (!text.trim()) throw new Error('empty_pdf_text')
+    return { ...truncateText(text), sourceKind: 'pdf' }
+  }
+
+  if (isTextLike(contentType, name)) {
+    const text = Buffer.from(bytes).toString('utf-8')
+    return { ...truncateText(text), sourceKind: 'file' }
+  }
+
+  throw new Error('unsupported_file')
+}
+
+async function extractTextFromUrl(url: string): Promise<{
+  text: string
+  truncated: boolean
+  sourceKind: 'google_doc' | 'drive_pdf' | 'drive_file'
+}> {
+  const docId = extractDocId(url)
+  if (docId) return { ...(await fetchDocText(docId)), sourceKind: 'google_doc' }
+
+  const fileId = extractDriveFileId(url)
+  if (!fileId) throw new Error('invalid_url')
+
+  const file = await fetchDriveFile(fileId)
+  const extracted = await extractTextFromFile(file.bytes, file.contentType, file.name)
+  return {
+    text: extracted.text,
+    truncated: extracted.truncated,
+    sourceKind: extracted.sourceKind === 'pdf' ? 'drive_pdf' : 'drive_file',
+  }
+}
+
 function parseHaikuJson(raw: string): z.infer<typeof HaikuResponseSchema> {
   // Strip optional markdown code fences before parsing
   const cleaned = raw.replace(/^```json\s*/i, '').replace(/\s*```$/, '').trim()
@@ -71,37 +197,87 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'unauthorized' }, { status: 401 })
   }
 
-  let docUrl: string
-  try {
-    const body = await request.json()
-    docUrl = body.docUrl
-    if (!docUrl || typeof docUrl !== 'string') throw new Error()
-  } catch {
-    return Response.json({ error: 'docUrl requerido' }, { status: 400 })
-  }
-
-  const docId = extractDocId(docUrl)
-  if (!docId) {
-    return Response.json(
-      { error: 'La URL no corresponde a un Google Doc válido' },
-      { status: 400 }
-    )
-  }
-
   let text: string
   let truncated: boolean
+  let sourceKind: 'google_doc' | 'drive_pdf' | 'drive_file' | 'pdf' | 'file'
+
   try {
-    ;({ text, truncated } = await fetchDocText(docId))
+    const contentType = request.headers.get('content-type') ?? ''
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData()
+      const file = formData.get('file')
+      if (!(file instanceof File)) {
+        return Response.json({ error: 'Archivo requerido' }, { status: 400 })
+      }
+
+      ;({ text, truncated, sourceKind } = await extractTextFromFile(
+        await file.arrayBuffer(),
+        (file.type || 'application/octet-stream').split(';')[0],
+        file.name
+      ))
+    } else {
+      const body = await request.json()
+      const url = body.docUrl ?? body.url
+      if (!url || typeof url !== 'string') throw new Error('missing_url')
+      ;({ text, truncated, sourceKind } = await extractTextFromUrl(url))
+    }
   } catch (err) {
     if (err instanceof Error && err.message === 'private_or_not_found') {
       return Response.json(
         {
           error:
-            "El documento no es público. Compartilo como 'cualquier persona con el enlace puede ver'",
+            "El archivo no es público. Compartilo como 'cualquier persona con el enlace puede ver'",
         },
         { status: 400 }
       )
     }
+
+    if (err instanceof Error && err.message === 'invalid_url') {
+      return Response.json(
+        { error: 'Pegá una URL válida de Google Docs o Google Drive' },
+        { status: 400 }
+      )
+    }
+
+    if (err instanceof Error && err.message === 'missing_url') {
+      return Response.json({ error: 'URL requerida' }, { status: 400 })
+    }
+
+    if (err instanceof SyntaxError) {
+      return Response.json({ error: 'URL requerida' }, { status: 400 })
+    }
+
+    if (err instanceof Error && err.message === 'file_too_large') {
+      return Response.json(
+        { error: 'El archivo supera el máximo de 12 MB' },
+        { status: 400 }
+      )
+    }
+
+    if (err instanceof Error && err.message === 'unsupported_file') {
+      return Response.json(
+        { error: 'Formato no soportado. Usá PDF, TXT, Markdown, JSON o CSV.' },
+        { status: 400 }
+      )
+    }
+
+    if (err instanceof Error && err.message === 'empty_pdf_text') {
+      return Response.json(
+        {
+          error:
+            'No pudimos leer texto del PDF. Revisá que tenga texto seleccionable y no sea un escaneo.',
+        },
+        { status: 400 }
+      )
+    }
+
+    if (err instanceof Error && err.message === 'pdf_parse_failed') {
+      return Response.json(
+        { error: 'Error al leer el PDF. Intentá con un PDF exportado con texto seleccionable.' },
+        { status: 500 }
+      )
+    }
+
     throw err
   }
 
@@ -158,7 +334,7 @@ export async function POST(request: NextRequest) {
           proposedPattern: p.proposed_pattern ?? null,
           proposedAction: p.default_action,
           proposedSeverity: p.severity,
-          sourceHint: 'google_workspace',
+          sourceHint: sourceKind,
           matchCount: 0,
           examples: [],
         },
@@ -169,7 +345,8 @@ export async function POST(request: NextRequest) {
   return Response.json({
     imported: suggestions.length,
     truncated,
-    suggestions: suggestions.map((s) => ({
+    sourceKind,
+    suggestions: suggestions.map((s: CreatedSuggestion) => ({
       id: s.id,
       proposedSlug: s.proposedSlug,
       proposedDomain: s.proposedDomain,
