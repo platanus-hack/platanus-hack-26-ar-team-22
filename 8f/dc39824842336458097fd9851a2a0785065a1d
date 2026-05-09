@@ -1,0 +1,53 @@
+CLAUDE.md
+  s_b87b645628ad60::t_dcda2a4a1bdde7 1-24
+specs/05-user-web.md
+  s_f14c9aff1730c5::t_93dc1deecf6f4d 1-160
+research/papers.md
+  s_b87b645628ad60::t_344d61feb7116d 1-75
+specs/01-engine-interceptor.md
+  s_f14c9aff1730c5::t_91860f96bc72bc 1-155
+specs/06-pitch-demo.md
+  s_f14c9aff1730c5::t_e0c23fd451c802 1-113
+specs/README.md
+  s_f14c9aff1730c5::t_8abce0359d05e9 1-45
+specs/07-requirements-docs.md
+  s_f14c9aff1730c5::t_3fa0caf291dabf 1-185
+research/latam-ai-safety.csv
+  s_b87b645628ad60::t_6cbaf0e32d9078 1-9
+research/yc-ai-safety.csv
+  s_b87b645628ad60::t_30956f22c86631 1-12
+research/landscape.md
+  s_b87b645628ad60::t_eee44a284ac1d5 1-183
+specs/02-vdb-bootstrap.md
+  s_f14c9aff1730c5::t_6cb35225ce0878 1-132
+specs/03-landing-page.md
+  s_f14c9aff1730c5::t_3d5967259c2700 1-109
+specs/00-constitution.md
+  s_f14c9aff1730c5::t_46d6a7e8972484 1-109
+specs/04-admin-web.md
+  s_f14c9aff1730c5::t_fcec4dbb536e89 1-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "8fdc39824842336458097fd9851a2a0785065a1d",
+  "prompts": {},
+  "sessions": {
+    "s_b87b645628ad60": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3b01c5f3-8538-41bb-9899-474a66053d92",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Christian-Rojas-Rodriguez <christianrojas.datascience@gmail.com>"
+    },
+    "s_f14c9aff1730c5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ab262192-5f13-4091-9ae0-d0ce1693c600",
+        "model": "claude-opus-4-7"
+      },
+      "human_author": "Christian-Rojas-Rodriguez <christianrojas.datascience@gmail.com>"
+    }
+  }
+}
