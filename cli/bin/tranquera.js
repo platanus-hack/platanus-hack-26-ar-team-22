@@ -1,18 +1,32 @@
 #!/usr/bin/env node
 // tranquera CLI — onboarding del dev en un comando.
-// `npx tranquera setup` deja Claude Code apuntando al firewall de tu org.
+//
+//   npx tranquera setup     → device flow + configura tu shell
+//   npx tranquera login     → fuerza un nuevo device flow
+//   npx tranquera whoami    → muestra a qué org estás vinculado
+//   npx tranquera logout    → revoca el token y limpia tu config
+//   npx tranquera status    → estado del rc + ping al proxy
+//
+// El device flow abre el browser para que loguées con Google. Después de
+// aprobar, recibís un token que se guarda en ~/.tranquera/config.json.
+// Tu admin tiene que haberte invitado primero desde /admin/team.
 
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, platform } from "node:os";
 import { dirname, join } from "node:path";
 import { stdout } from "node:process";
 
+const DEFAULT_APP_URL =
+  process.env.TRANQUERA_APP_URL ?? "http://localhost:3000";
 const DEFAULT_PROXY_URL =
   process.env.TRANQUERA_PROXY_URL ??
   "https://platanus-hack-26-ar-team-22-production.up.railway.app";
 
+const CONFIG_DIR = join(homedir(), ".tranquera");
+const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 const MARKER = "# tranquera · firewall de Claude Code";
-const FETCH_TIMEOUT_MS = 5000;
+const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
 const COLORS = {
   reset: "\x1b[0m",
@@ -27,13 +41,35 @@ const c = (color, text) =>
   stdout.isTTY ? `${COLORS[color]}${text}${COLORS.reset}` : text;
 
 // -------------------------------------------------------------
-// Shell detection
+// Config storage
+// -------------------------------------------------------------
+
+function readConfig() {
+  if (!existsSync(CONFIG_PATH)) return null;
+  try {
+    return JSON.parse(readFileSync(CONFIG_PATH, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function writeConfig(config) {
+  mkdirSync(CONFIG_DIR, { recursive: true });
+  writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + "\n", { mode: 0o600 });
+}
+
+function clearConfig() {
+  if (existsSync(CONFIG_PATH)) {
+    writeFileSync(CONFIG_PATH, "{}\n", { mode: 0o600 });
+  }
+}
+
+// -------------------------------------------------------------
+// Shell rc
 // -------------------------------------------------------------
 
 function detectShellConfig() {
-  const shellPath = process.env.SHELL ?? "";
-  const shellName = shellPath.split("/").pop() ?? "";
-
+  const shellName = (process.env.SHELL ?? "").split("/").pop() ?? "";
   if (shellName === "fish") {
     return {
       name: "fish",
@@ -51,27 +87,14 @@ function detectShellConfig() {
   if (shellName === "bash") {
     return {
       name: "bash",
-      rcPath: join(homedir(), platform() === "darwin" ? ".bash_profile" : ".bashrc"),
+      rcPath: join(
+        homedir(),
+        platform() === "darwin" ? ".bash_profile" : ".bashrc",
+      ),
       exportLine: (url) => `export ANTHROPIC_BASE_URL="${url}"`,
     };
   }
   return null;
-}
-
-// -------------------------------------------------------------
-// Helpers
-// -------------------------------------------------------------
-
-async function pingHealth(proxyUrl) {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    const res = await fetch(`${proxyUrl}/health`, { signal: controller.signal });
-    clearTimeout(timer);
-    return res.ok;
-  } catch {
-    return false;
-  }
 }
 
 function appendIfMissing(rcPath, blockBody) {
@@ -83,9 +106,127 @@ function appendIfMissing(rcPath, blockBody) {
   return true;
 }
 
-function isConfigured(rcPath) {
+function isConfiguredInRc(rcPath) {
   if (!existsSync(rcPath)) return false;
   return readFileSync(rcPath, "utf8").includes(MARKER);
+}
+
+// -------------------------------------------------------------
+// HTTP helpers
+// -------------------------------------------------------------
+
+async function pingHealth(proxyUrl) {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(`${proxyUrl}/health`, { signal: controller.signal });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function startDeviceFlow(appUrl) {
+  const res = await fetch(`${appUrl}/api/cli/device/start`, { method: "POST" });
+  if (!res.ok) {
+    throw new Error(`backend devolvió ${res.status} en /device/start`);
+  }
+  return res.json();
+}
+
+async function pollDevice(appUrl, deviceCode, intervalSec) {
+  const start = Date.now();
+  while (Date.now() - start < POLL_TIMEOUT_MS) {
+    const res = await fetch(
+      `${appUrl}/api/cli/device/poll?device_code=${encodeURIComponent(deviceCode)}`,
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data.status === "approved") return data;
+      if (data.status === "expired") throw new Error("código vencido");
+      if (data.status === "consumed") throw new Error("token ya recogido por otro proceso");
+    }
+    await new Promise((r) => setTimeout(r, intervalSec * 1000));
+  }
+  throw new Error("timeout esperando aprobación");
+}
+
+async function fetchMe(appUrl, token) {
+  const res = await fetch(`${appUrl}/api/cli/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+async function postLogout(appUrl, token) {
+  await fetch(`${appUrl}/api/cli/logout`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+// -------------------------------------------------------------
+// Browser open
+// -------------------------------------------------------------
+
+function openInBrowser(url) {
+  const p = platform();
+  let cmd, args;
+  if (p === "darwin") {
+    cmd = "open";
+    args = [url];
+  } else if (p === "win32") {
+    cmd = "cmd";
+    args = ["/c", "start", "", url];
+  } else {
+    cmd = "xdg-open";
+    args = [url];
+  }
+  try {
+    const child = spawn(cmd, args, { stdio: "ignore", detached: true });
+    child.on("error", () => {}); // si falla, ignoramos — el user puede pegar la URL
+    child.unref();
+  } catch {
+    // mismo: si no hay browser, le mostramos la URL al user para que la pegue.
+  }
+}
+
+// -------------------------------------------------------------
+// Device flow orchestrator (login)
+// -------------------------------------------------------------
+
+async function performDeviceFlow() {
+  console.log("");
+  console.log(`  ${c("bold", "▎ tranquera · login")}`);
+  console.log(`  └─ app  ${DEFAULT_APP_URL}`);
+  console.log("");
+
+  process.stdout.write("  · iniciando device flow… ");
+  const start = await startDeviceFlow(DEFAULT_APP_URL);
+  console.log(c("green", "ok"));
+
+  console.log("");
+  console.log(`  ${c("bold", "Abrí el browser y aprobá:")}`);
+  console.log(`      ${start.verification_uri}`);
+  console.log("");
+  console.log(`  ${c("dim", "(o pegá este código manualmente)")}`);
+  console.log(`      ${c("bold", start.user_code)}`);
+  console.log("");
+
+  openInBrowser(start.verification_uri);
+
+  process.stdout.write("  · esperando aprobación… ");
+  const approved = await pollDevice(DEFAULT_APP_URL, start.device_code, start.interval);
+  console.log(c("green", "ok"));
+
+  return {
+    token: approved.token,
+    member: approved.member,
+    proxyUrl: start.proxy_url ?? DEFAULT_PROXY_URL,
+    appUrl: DEFAULT_APP_URL,
+  };
 }
 
 // -------------------------------------------------------------
@@ -93,65 +234,153 @@ function isConfigured(rcPath) {
 // -------------------------------------------------------------
 
 async function cmdSetup() {
+  const existing = readConfig();
+  let session;
+
+  if (existing?.token && existing?.appUrl) {
+    process.stdout.write("  · ya hay un token guardado, validando… ");
+    const me = await fetchMe(existing.appUrl, existing.token);
+    if (me?.member) {
+      console.log(c("green", "ok"));
+      session = {
+        token: existing.token,
+        member: me.member,
+        proxyUrl: existing.proxyUrl ?? DEFAULT_PROXY_URL,
+        appUrl: existing.appUrl,
+      };
+    } else {
+      console.log(c("yellow", "expirado, vuelvo a loguear"));
+    }
+  }
+
+  if (!session) {
+    session = await performDeviceFlow();
+    writeConfig({
+      version: 1,
+      appUrl: session.appUrl,
+      proxyUrl: session.proxyUrl,
+      token: session.token,
+      member: session.member,
+    });
+  }
+
+  // Configurar el rc.
   const shell = detectShellConfig();
   if (!shell) {
     console.error(c("red", "✗ no reconocí tu shell."));
-    console.error(`  agregá manualmente: export ANTHROPIC_BASE_URL="${DEFAULT_PROXY_URL}"`);
+    console.error(`  agregá manualmente: export ANTHROPIC_BASE_URL="${session.proxyUrl}"`);
     process.exit(1);
   }
 
   console.log("");
   console.log(`  ${c("bold", "▎ tranquera · setup")}`);
-  console.log(`  ├─ proxy  ${DEFAULT_PROXY_URL}`);
-  console.log(`  ├─ shell  ${shell.name}`);
-  console.log(`  └─ rc     ${shell.rcPath}`);
+  console.log(`  ├─ proxy   ${session.proxyUrl}`);
+  console.log(`  ├─ shell   ${shell.name}`);
+  console.log(`  ├─ rc      ${shell.rcPath}`);
+  console.log(`  └─ member  ${session.member.email} · org=${session.member.org.id}`);
   console.log("");
 
-  const block = `${MARKER}\n${shell.exportLine(DEFAULT_PROXY_URL)}`;
+  const block = `${MARKER}\n${shell.exportLine(session.proxyUrl)}`;
   const wrote = appendIfMissing(shell.rcPath, block);
   if (wrote) {
     console.log(`  ${c("green", "·")} agregué la export a ${shell.rcPath}`);
   } else {
-    console.log(`  ${c("dim", "·")} ya estaba configurado en ${shell.rcPath} — no toco nada`);
+    console.log(`  ${c("dim", "·")} ya estaba configurado en ${shell.rcPath}`);
   }
 
   process.stdout.write("  · verificando proxy… ");
-  const healthy = await pingHealth(DEFAULT_PROXY_URL);
-  console.log(
-    healthy
-      ? c("green", "ok")
-      : c("yellow", `no respondió (timeout ${FETCH_TIMEOUT_MS}ms)`),
-  );
+  const healthy = await pingHealth(session.proxyUrl);
+  console.log(healthy ? c("green", "ok") : c("yellow", "no respondió"));
 
   console.log("");
-  console.log("  Listo. Reabrí tu terminal o corré:");
+  console.log("  Listo. Reabrí tu terminal (o corré `source` del rc) y usá");
+  console.log("  Claude Code igual que siempre. Cada prompt va a pasar por la");
+  console.log("  tranquera y queda atribuido a vos en el back-office.");
   console.log("");
-  console.log(`      ${c("bold", `source ${shell.rcPath}`)}`);
+}
+
+async function cmdLogin() {
+  const session = await performDeviceFlow();
+  writeConfig({
+    version: 1,
+    appUrl: session.appUrl,
+    proxyUrl: session.proxyUrl,
+    token: session.token,
+    member: session.member,
+  });
   console.log("");
-  console.log("  Después usá Claude Code igual que siempre. Cada prompt va a pasar");
-  console.log("  por la tranquera de tu organización. Si te bloquea algo legítimo,");
-  console.log("  contactá a tu admin con el trace id de la respuesta.");
+  console.log(`  ${c("green", "✓")} logueado como ${c("bold", session.member.email)} (org ${session.member.org.id})`);
+  console.log(`  ${c("dim", `  token guardado en ${CONFIG_PATH}`)}`);
+  console.log("");
+}
+
+async function cmdWhoami() {
+  const cfg = readConfig();
+  if (!cfg?.token) {
+    console.log("");
+    console.log(`  ${c("yellow", "✗")} no estás logueado. Corré: ${c("bold", "npx tranquera login")}`);
+    console.log("");
+    process.exit(1);
+  }
+
+  process.stdout.write("  · validando token… ");
+  const me = await fetchMe(cfg.appUrl ?? DEFAULT_APP_URL, cfg.token);
+  if (!me?.member) {
+    console.log(c("red", "inválido"));
+    console.log(`  ${c("yellow", "→")} corré: ${c("bold", "npx tranquera login")}`);
+    process.exit(1);
+  }
+  console.log(c("green", "ok"));
+
+  console.log("");
+  console.log(`  ${c("bold", "▎ tranquera · whoami")}`);
+  console.log(`  ├─ email   ${me.member.email}`);
+  console.log(`  ├─ rol     ${me.member.role}`);
+  console.log(`  ├─ org     ${me.member.org.id} (${me.member.org.name})`);
+  console.log(`  └─ proxy   ${cfg.proxyUrl ?? DEFAULT_PROXY_URL}`);
+  console.log("");
+}
+
+async function cmdLogout() {
+  const cfg = readConfig();
+  if (!cfg?.token) {
+    console.log(`  ${c("dim", "no había sesión activa")}`);
+    return;
+  }
+  await postLogout(cfg.appUrl ?? DEFAULT_APP_URL, cfg.token);
+  clearConfig();
+  console.log("");
+  console.log(`  ${c("green", "✓")} sesión cerrada y token revocado`);
+  console.log(`  ${c("dim", "el rc no se modifica — si querés sacar el proxy, borralo a mano")}`);
   console.log("");
 }
 
 async function cmdStatus() {
   const shell = detectShellConfig();
+  const cfg = readConfig();
   console.log("");
   console.log(`  ${c("bold", "▎ tranquera · status")}`);
-  console.log(`  ├─ proxy  ${DEFAULT_PROXY_URL}`);
+  console.log(`  ├─ app    ${cfg?.appUrl ?? DEFAULT_APP_URL}`);
+  console.log(`  ├─ proxy  ${cfg?.proxyUrl ?? DEFAULT_PROXY_URL}`);
   console.log(`  └─ shell  ${shell?.name ?? "desconocido"}`);
   console.log("");
 
-  if (!shell) {
-    console.log(c("yellow", "  ⚠ shell no soportado, no puedo chequear el rc."));
-  } else if (isConfigured(shell.rcPath)) {
-    console.log(`  ${c("green", "✓")} configurado en ${shell.rcPath}`);
+  if (cfg?.token) {
+    console.log(`  ${c("green", "✓")} token guardado en ${CONFIG_PATH}`);
   } else {
-    console.log(`  ${c("yellow", "✗")} NO configurado. Corré: ${c("bold", "npx tranquera setup")}`);
+    console.log(`  ${c("yellow", "✗")} sin token. Corré: ${c("bold", "npx tranquera login")}`);
+  }
+
+  if (shell) {
+    if (isConfiguredInRc(shell.rcPath)) {
+      console.log(`  ${c("green", "✓")} export configurada en ${shell.rcPath}`);
+    } else {
+      console.log(`  ${c("yellow", "✗")} export NO está en ${shell.rcPath}`);
+    }
   }
 
   process.stdout.write("  · ping al proxy… ");
-  const healthy = await pingHealth(DEFAULT_PROXY_URL);
+  const healthy = await pingHealth(cfg?.proxyUrl ?? DEFAULT_PROXY_URL);
   console.log(healthy ? c("green", "ok") : c("red", "no responde"));
   console.log("");
 }
@@ -164,12 +393,16 @@ function cmdHelp() {
     npx tranquera <comando>
 
   Comandos:
-    setup     Configura ANTHROPIC_BASE_URL en tu shell rc (zsh/bash/fish).
-    status    Muestra si estás configurado y si el proxy responde.
+    setup     Login + configura ANTHROPIC_BASE_URL en tu shell rc.
+    login     Fuerza un nuevo device flow (útil después de logout).
+    whoami    Muestra a qué org / member estás vinculado.
+    logout    Revoca tu token y limpia ~/.tranquera/config.json.
+    status    Estado actual: rc + token + ping al proxy.
     help      Esta ayuda.
 
   Variables:
-    TRANQUERA_PROXY_URL    Override de la URL del proxy (default: deploy del hack).
+    TRANQUERA_APP_URL      URL del back-office (default: ${DEFAULT_APP_URL}).
+    TRANQUERA_PROXY_URL    URL del proxy (default: deploy del hack).
 
   Más info: https://github.com/platanus-hack/platanus-hack-26-ar-team-22
 `);
@@ -182,6 +415,9 @@ function cmdHelp() {
 const command = process.argv[2] ?? "help";
 const handlers = {
   setup: cmdSetup,
+  login: cmdLogin,
+  whoami: cmdWhoami,
+  logout: cmdLogout,
   status: cmdStatus,
   help: cmdHelp,
   "--help": cmdHelp,

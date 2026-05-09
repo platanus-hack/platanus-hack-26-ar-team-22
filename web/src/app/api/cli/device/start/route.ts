@@ -16,6 +16,16 @@ function appUrl(): string {
   return process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 }
 
+function proxyUrl(): string {
+  // El CLI necesita saber a qué proxy apuntar `ANTHROPIC_BASE_URL`. Lo
+  // exponemos en la respuesta de `start` para que el CLI no lo tenga que
+  // tener hardcodeado por ambiente.
+  return (
+    process.env.TRANQUERA_PROXY_URL ??
+    "https://platanus-hack-26-ar-team-22-production.up.railway.app"
+  );
+}
+
 export async function POST() {
   const deviceCode = generateDeviceCode();
   const userCode = generateUserCode();
@@ -31,6 +41,7 @@ export async function POST() {
     device_code: deviceCode,
     user_code: userCode,
     verification_uri: verificationUri,
+    proxy_url: proxyUrl(),
     expires_in: Math.floor(DEVICE_CODE_TTL_MS / 1000),
     interval: DEVICE_POLL_INTERVAL_S,
   });
