@@ -1,0 +1,21 @@
+web/src/app/page.tsx
+  s_4235fa73d6112c::t_bc35fed5470c04 1-7,11-12,14-18
+web/src/app/layout.tsx
+  s_4235fa73d6112c::t_efc8658fa1eb72 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "2feaf8cc6a6dd6142a1e17b24a3b48a2da5015fd",
+  "prompts": {},
+  "sessions": {
+    "s_4235fa73d6112c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34b3e67a-d90d-4ead-bff1-c58601c66bb3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Christian-Rojas-Rodriguez <christianrojas.datascience@gmail.com>"
+    }
+  }
+}
