@@ -7,6 +7,7 @@
   --color-graphite: #7c7a72;
   --color-graphite-dark: #5c5a52;
 
+  --font-display: var(--font-plex-sans), "IBM Plex Sans", system-ui, sans-serif;
   --font-sans: var(--font-plex-sans), "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, monospace;
 
@@ -75,4 +76,34 @@ body {
   .hero-dot {
     animation: none;
   }
+}
+
+/* ─── Tranquera landing utilities (dark sections) ─── */
+
+.hover-lift {
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+.btn-press:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.link-underline {
+  position: relative;
+}
+.link-underline::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: currentColor;
+  transition: width 0.22s ease;
+}
+.link-underline:hover::after {
+  width: 100%;
 }
