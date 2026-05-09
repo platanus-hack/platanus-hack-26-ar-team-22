@@ -119,26 +119,42 @@ Todos protegidos por middleware que valida sesión Supabase mock (cookie `admin_
 
 Reusa `policies` (de spec 02), `interactions` (de spec 01) y `rule_suggestions` (de spec 08).
 
-Tabla nueva en este spec — usuarios admin (mock, opcional para hack):
+Tablas que vive en este spec — `members` (humanos / entidades por org) + `organizations` (tenant). Ambas se crean en `web/prisma/migrations/`:
 
 ```sql
-create table admin_users (
-  id uuid primary key default gen_random_uuid(),
-  org_id text not null default 'demo',
-  email text not null,
-  role text not null default 'admin' check (role in ('admin','viewer')),
-  created_at timestamptz default now(),
-  unique (org_id, email)
-);
-
 create table organizations (
   id text primary key,                  -- ej. 'demo', 'acme'
   name text not null,
   upstream_api_key_ref text,            -- referencia a Vault / env, no la key cruda
   created_at timestamptz default now()
 );
+
+-- Roles:
+--   admin → humano que se loguea al back-office. UI completa.
+--   dev   → entidad sin UI por ahora. Existe para atribuir interactions
+--           del proxy a un dev concreto cuando emitamos API keys del
+--           proxy (post-hack). Sus "permisos" se materializan en el
+--           comportamiento del proxy, no en una pantalla.
+create type member_role as enum ('admin', 'dev');
+
+create table members (
+  id         uuid primary key default gen_random_uuid(),
+  org_id     text not null default 'demo' references organizations(id),
+  email      text not null,
+  role       member_role not null default 'admin',
+  created_at timestamptz default now(),
+  unique (org_id, email)
+);
+
 insert into organizations (id, name) values ('demo', 'Org Demo') on conflict do nothing;
+insert into members (org_id, email, role)
+  values ('demo', 'admin@team22.dev', 'admin')
+  on conflict do nothing;
 ```
+
+> El SQL canónico vive en `web/prisma/migrations/20260509000001_members_and_suggestions/migration.sql`. Acá lo replicamos resumido como referencia.
+
+> **Nota sobre auth real (post-hack)**: cuando integremos Supabase Auth, `members.id` se mapea 1:1 a `auth.users.id` (mismo UUID). Para el hack la auth es mock — magic link con código `123456` hardcodeado, cookie `admin_session` falsa.
 
 ---
 

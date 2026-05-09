@@ -53,6 +53,24 @@ enum PolicyDomain {
   code
 }
 
+/// Rol de un member dentro de una org.
+///   - admin → humano que se loguea al back-office. Edita policies,
+///             ve events/suggestions/dashboards de toda la org.
+///   - dev   → entidad sin UI propia. Existe para atribuir interactions
+///             del proxy a un dev concreto (vía API key del proxy,
+///             post-hack). Sus "permisos" se materializan en el
+///             comportamiento del proxy, no en una pantalla.
+enum MemberRole {
+  admin
+  dev
+}
+
+enum SuggestionStatus {
+  pending
+  accepted
+  rejected
+}
+
 // =============================================================
 // Models
 // =============================================================
@@ -65,8 +83,10 @@ model Organization {
   upstreamApiKeyRef String?  @map("upstream_api_key_ref") // formato "env:<VAR>" o "vault:<uuid>" — nunca la key cruda
   createdAt         DateTime @default(now()) @map("created_at")
 
-  policies     Policy[]
-  interactions Interaction[]
+  policies        Policy[]
+  interactions    Interaction[]
+  members         Member[]
+  ruleSuggestions RuleSuggestion[]
 
   @@map("organizations")
 }
@@ -107,7 +127,7 @@ model Interaction {
   id             String                       @id @default(uuid()) @db.Uuid
   traceId        String                       @unique @map("trace_id")
   orgId          String                       @default("demo") @map("org_id")
-  userId         String?                      @map("user_id") @db.Uuid // Supabase Auth user id (auth.users.id) cuando aplica
+  userId         String?                      @map("user_id") @db.Uuid // members.id (mismo UUID que auth.users.id cuando integremos Supabase Auth real)
   requestModel   String                       @map("request_model")
   prompt         String // SIEMPRE redactado antes de persistir
   action         Action
@@ -124,4 +144,52 @@ model Interaction {
   // Composite que cubre el dashboard (`/api/admin/metrics` y `/admin/events?action=...`).
   @@index([orgId, action, createdAt(sort: Desc)])
   @@map("interactions")
+}
+
+/// Identidades dentro de una org. Sólo los `admin` se loguean al back-office
+/// (auth mock con magic link + código `123456` para el hack). Los `dev`
+/// no tienen UI propia; existen como entidad para atribuir interactions
+/// del proxy cuando emitamos API keys del proxy (post-hack).
+/// Cuando integremos Supabase Auth real, `members.id` se mapea 1:1 a
+/// `auth.users.id`.
+model Member {
+  id        String     @id @default(uuid()) @db.Uuid
+  orgId     String     @default("demo") @map("org_id")
+  email     String
+  role      MemberRole @default(admin)
+  createdAt DateTime   @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, email])
+  @@map("members")
+}
+
+/// Cola del AI Suggestor (Layer 4). Cada fila es una propuesta de regla
+/// nueva derivada de `interactions`. El admin la acepta / rechaza / edita
+/// desde `/admin/suggestions`. Aceptar promueve la sugerencia a una fila
+/// real en `policies` con `source = ai-suggestor`.
+model RuleSuggestion {
+  id                  String           @id @default(uuid()) @db.Uuid
+  orgId               String           @default("demo") @map("org_id")
+  proposedSlug        String           @map("proposed_slug")
+  proposedDomain      PolicyDomain     @map("proposed_domain")
+  proposedLayer       PolicyLayer      @map("proposed_layer")
+  proposedRule        String           @map("proposed_rule")
+  proposedPattern     String?          @map("proposed_pattern")
+  proposedMatchConfig Json?            @map("proposed_match_config")
+  proposedAction      Action           @map("proposed_action")
+  proposedSeverity    Severity         @default(medium) @map("proposed_severity")
+  matchCount          Int              @default(0) @map("match_count") // matches retroactivos sobre interactions
+  examples            Json             @default("[]") // [{traceId, promptRedacted, createdAt}]
+  status              SuggestionStatus @default(pending)
+  rejectReason        String?          @map("reject_reason")
+  acceptedPolicyId    String?          @map("accepted_policy_id") @db.Uuid
+  createdAt           DateTime         @default(now()) @map("created_at")
+  decidedAt           DateTime?        @map("decided_at")
+
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@index([orgId, status, createdAt(sort: Desc)])
+  @@map("rule_suggestions")
 }
