@@ -1,0 +1,19 @@
+web/.npmrc
+  s_4235fa73d6112c::t_855a15810be562 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "e9d9a16eabaf0c7a695c70d61f01090a33604b72",
+  "prompts": {},
+  "sessions": {
+    "s_4235fa73d6112c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34b3e67a-d90d-4ead-bff1-c58601c66bb3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Christian-Rojas-Rodriguez <christianrojas.datascience@gmail.com>"
+    }
+  }
+}
