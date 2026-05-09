@@ -14,5 +14,11 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8080
 
+    # Anthropic API key dedicada al NL judge (Layer 3). Si no se setea, la
+    # capa NL queda deshabilitada y el proxy se comporta como v0.1 (regex +
+    # passthrough). Tener una key separada del cliente nos permite usar
+    # Haiku sin depender de subscriptions, betas u OAuth scopes ajenos.
+    anthropic_judge_api_key: str | None = None
+
 
 settings = Settings()

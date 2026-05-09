@@ -9,6 +9,7 @@ REDACT, WARN, and the pattern/NL layers land in subsequent versions.
 """
 
 import json
+import logging
 import time
 from contextlib import asynccontextmanager
 from typing import Annotated, Any
@@ -26,6 +27,8 @@ from .config import settings
 from .db import get_session
 from .enums import Action, PolicyLayer, winning_action
 from .models import Interaction, Policy
+from .nl_layer import is_enabled as nl_enabled
+from .nl_layer import run_nl_layer
 from .redact import redact_for_storage
 from .schemas import MessagesRequest
 from .upstream import (
@@ -36,9 +39,15 @@ from .upstream import (
     stream_response,
 )
 
+logger = logging.getLogger("app.main")
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # Forzamos INFO en nuestros módulos para que los pasos de la cascada
+    # aparezcan en stdout sin importar la config de uvicorn (en --reload el
+    # logger queda en WARNING por default).
+    logging.getLogger("app").setLevel(logging.INFO)
     init_client()
     try:
         yield
@@ -65,6 +74,17 @@ async def _load_active_regex_policies(session: AsyncSession, org_id: str) -> lis
             Policy.org_id == org_id,
             Policy.is_active.is_(True),  # type: ignore[union-attr]
             Policy.layer == PolicyLayer.regex,
+        )
+    )
+    return list(result.all())
+
+
+async def _load_active_nl_policies(session: AsyncSession, org_id: str) -> list[Policy]:
+    result = await session.exec(
+        select(Policy).where(
+            Policy.org_id == org_id,
+            Policy.is_active.is_(True),  # type: ignore[union-attr]
+            Policy.layer == PolicyLayer.nl,
         )
     )
     return list(result.all())
@@ -149,14 +169,52 @@ async def messages(
     org_id = request.headers.get("x-team22-org-key", settings.default_org_id)
     trace_id = str(ULID())
 
+    logger.info(
+        "[req] trace=%s org=%s model=%s stream=%s",
+        trace_id, org_id, parsed.model, is_streaming,
+    )
+
     # ----- Layer 1: regex -----------------------------------------
     regex_started = time.perf_counter()
-    policies = await _load_active_regex_policies(session, org_id)
-    hits = run_regex_layer(parsed, policies)
+    regex_policies = await _load_active_regex_policies(session, org_id)
+    hits = run_regex_layer(parsed, regex_policies)
     regex_ms = int((time.perf_counter() - regex_started) * 1000)
     latency_by_layer: dict[str, int] = {"regex": regex_ms}
 
     action = winning_action([h.action for h in hits])
+    logger.info(
+        "[regex] trace=%s policies=%d hits=%d action=%s elapsed=%dms",
+        trace_id, len(regex_policies), len(hits), action.value, regex_ms,
+    )
+
+    # ----- Layer 3: NL judge --------------------------------------
+    # Saltamos si regex ya BLOQUEÓ (no hay nada que sumar) o si el judge
+    # no tiene API key configurada (fail open, comportamiento v0.1).
+    if action == Action.BLOCK:
+        logger.info("[nl] trace=%s skipped reason=regex_blocked", trace_id)
+    elif not nl_enabled():
+        logger.info("[nl] trace=%s skipped reason=no_judge_api_key", trace_id)
+    else:
+        nl_policies = await _load_active_nl_policies(session, org_id)
+        if not nl_policies:
+            logger.info("[nl] trace=%s skipped reason=no_active_nl_policies", trace_id)
+        else:
+            logger.info(
+                "[nl] trace=%s calling judge policies=%d",
+                trace_id, len(nl_policies),
+            )
+            nl_started = time.perf_counter()
+            nl_hits = await run_nl_layer(parsed, nl_policies)
+            nl_ms = int((time.perf_counter() - nl_started) * 1000)
+            latency_by_layer["nl"] = nl_ms
+            logger.info(
+                "[nl] trace=%s hits=%d elapsed=%dms slugs=%s",
+                trace_id, len(nl_hits), nl_ms, [h.slug for h in nl_hits],
+            )
+            if nl_hits:
+                hits = hits + nl_hits
+                action = winning_action([h.action for h in hits])
+
     response_headers = {
         "x-team22-trace-id": trace_id,
         "x-team22-action": action.value,
@@ -167,6 +225,10 @@ async def messages(
         hit = _winning_hit(hits, Action.BLOCK)
         assert hit is not None
         reason = f"matchea regla {hit.slug}: {hit.rule}"
+        logger.info(
+            "[done] trace=%s action=BLOCK by=%s/%s",
+            trace_id, hit.layer.value, hit.slug,
+        )
         await _persist_interaction(
             session,
             trace_id=trace_id,
@@ -194,6 +256,7 @@ async def messages(
         )
 
     # ----- LOG (passthrough) --------------------------------------
+    upstream_started = time.perf_counter()
     upstream_resp = await open_upstream(
         "POST",
         "/v1/messages",
@@ -201,8 +264,20 @@ async def messages(
         dict(request.headers),
         request.url.query,
     )
-    latency_by_layer["upstream_open_ms"] = (
-        int((time.perf_counter() - started) * 1000) - regex_ms
+    latency_by_layer["upstream_open_ms"] = int(
+        (time.perf_counter() - upstream_started) * 1000
+    )
+
+    if hits:
+        slugs = ", ".join(sorted({h.slug for h in hits}))
+        reason = f"matchearon reglas: {slugs}"
+    else:
+        reason = "no policy matched"
+
+    logger.info(
+        "[done] trace=%s action=%s upstream_status=%d total=%dms",
+        trace_id, action.value, upstream_resp.status_code,
+        int((time.perf_counter() - started) * 1000),
     )
 
     # Persist before piping the body — we don't read the response body, only
@@ -215,7 +290,7 @@ async def messages(
         parsed=parsed,
         hits=hits,
         action=action,
-        reason="no policy matched" if not hits else "logged for audit",
+        reason=reason,
         latency_total_ms=int((time.perf_counter() - started) * 1000),
         latency_by_layer=latency_by_layer,
         upstream_status=upstream_resp.status_code,
