@@ -29,13 +29,15 @@ const RANGE_LABELS: Record<Range, string> = {
   "30d": "últimos 30 días",
 };
 
-// Severity reads as bar weight + text weight, matching identidad/design.md
-// § 6. Functional color is reserved for `/admin/events` (live monitoring).
+// Analytics is a monitoring surface — design.md § 6 explicitly authorises
+// functional color here so the compliance officer can scan BLOCK vs WARN
+// at a glance. Weight is layered on top so the hierarchy holds even for
+// readers who can't tell the colors apart.
 const ACTION_STYLES: Record<string, { bar: string; text: string }> = {
-  BLOCK:  { bar: "bg-ink",            text: "font-bold text-ink" },
-  REDACT: { bar: "bg-ink/75",         text: "font-semibold text-ink" },
-  WARN:   { bar: "bg-graphite-dark",  text: "font-medium text-ink" },
-  LOG:    { bar: "bg-graphite",       text: "text-ink" },
+  BLOCK:  { bar: "bg-red-600/85",   text: "font-bold text-red-700" },
+  REDACT: { bar: "bg-amber-500/85", text: "font-semibold text-amber-700" },
+  WARN:   { bar: "bg-orange-400/85", text: "font-medium text-orange-700" },
+  LOG:    { bar: "bg-zinc-400/85",  text: "text-zinc-600" },
 };
 
 type AlignmentLevel = "alto" | "moderado" | "bajo" | "crítico";
@@ -49,12 +51,12 @@ function getAlignmentLevel(score: number): AlignmentLevel {
 
 const ALIGNMENT_META: Record<
   AlignmentLevel,
-  { label: string; description: string; weight: string }
+  { label: string; description: string; weight: string; tone: string }
 > = {
-  alto:     { label: "alineamiento alto",     description: "Los devs operan dentro de las políticas de la organización.",         weight: "font-medium" },
-  moderado: { label: "alineamiento moderado", description: "Hay margen de mejora — revisá las políticas más activadas.",          weight: "font-semibold" },
-  bajo:     { label: "alineamiento bajo",     description: "Un porcentaje significativo de requests está siendo bloqueado.",       weight: "font-bold" },
-  crítico:  { label: "atención requerida",    description: "Más de la mitad de los requests no pasan las políticas vigentes.",    weight: "font-bold" },
+  alto:     { label: "alineamiento alto",     description: "Los devs operan dentro de las políticas de la organización.",         weight: "font-medium",  tone: "text-ink" },
+  moderado: { label: "alineamiento moderado", description: "Hay margen de mejora — revisá las políticas más activadas.",          weight: "font-semibold", tone: "text-ink" },
+  bajo:     { label: "alineamiento bajo",     description: "Un porcentaje significativo de requests está siendo bloqueado.",       weight: "font-bold",     tone: "text-amber-700" },
+  crítico:  { label: "atención requerida",    description: "Más de la mitad de los requests no pasan las políticas vigentes.",    weight: "font-bold",     tone: "text-red-700" },
 };
 
 export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
@@ -121,9 +123,20 @@ export function AnalyticsPanel({ initial }: { initial: AnalyticsData }) {
               </span>
               <div className="flex flex-col gap-1 pb-1">
                 <span
-                  className={`inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-ink ${meta.weight}`}
+                  className={`inline-flex items-center gap-2 font-mono text-xs uppercase tracking-widest ${meta.weight} ${meta.tone}`}
                 >
-                  <span aria-hidden className={`h-3 w-1 ${level === "alto" ? "bg-graphite" : level === "moderado" ? "bg-graphite-dark" : level === "bajo" ? "bg-ink/75" : "bg-ink"}`} />
+                  <span
+                    aria-hidden
+                    className={`h-3 w-1 ${
+                      level === "alto"
+                        ? "bg-graphite"
+                        : level === "moderado"
+                          ? "bg-graphite-dark"
+                          : level === "bajo"
+                            ? "bg-amber-600"
+                            : "bg-red-600"
+                    }`}
+                  />
                   {meta.label}
                 </span>
                 <span className="max-w-xs font-mono text-[11px] text-graphite">

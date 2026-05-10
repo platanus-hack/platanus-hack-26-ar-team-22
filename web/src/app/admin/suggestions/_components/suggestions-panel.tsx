@@ -56,8 +56,10 @@ const SEVERITY_LABELS: Record<string, string> = {
   high: "alta",
 };
 
-// Severity reads as text weight + a 4px left bar that darkens with severity,
-// matching identidad/design.md § 6. Color is reserved for `/admin/events`.
+// Suggestions is a monitoring/approval surface — design.md § 6 authorises
+// functional color here. Severity reads as a tinted background + text
+// weight gradient (LOG 400 → BLOCK 700) so it scans both with and
+// without color recognition.
 const ACTION_WEIGHT: Record<string, string> = {
   LOG: "font-normal",
   WARN: "font-medium",
@@ -65,10 +67,16 @@ const ACTION_WEIGHT: Record<string, string> = {
   BLOCK: "font-bold",
 };
 const ACTION_INDICATOR: Record<string, string> = {
-  LOG: "bg-graphite",
-  WARN: "bg-graphite-dark",
-  REDACT: "bg-ink/80",
-  BLOCK: "bg-ink",
+  LOG: "bg-zinc-500/70",
+  WARN: "bg-orange-500/80",
+  REDACT: "bg-amber-500/80",
+  BLOCK: "bg-red-600/80",
+};
+const ACTION_TEXT: Record<string, string> = {
+  LOG: "text-zinc-700",
+  WARN: "text-orange-700",
+  REDACT: "text-amber-700",
+  BLOCK: "text-red-700",
 };
 
 type SuggestorRunResult = {
@@ -293,7 +301,11 @@ function SuggestionCard({
           // {current ? "actualiza regla" : "regla nueva"}
         </span>
 
-        <span className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-ink">
+        <span
+          className={`inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider ${
+            ACTION_TEXT[s.proposedAction] ?? "text-ink"
+          }`}
+        >
           <span
             aria-hidden
             className={`h-3.5 w-1 ${ACTION_INDICATOR[s.proposedAction] ?? "bg-graphite"}`}
@@ -424,7 +436,11 @@ function DiffPane({
       </span>
       <p className="text-sm leading-relaxed">{rule}</p>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] uppercase tracking-wider text-graphite">
-        <span className="inline-flex items-center gap-1.5">
+        <span
+          className={`inline-flex items-center gap-1.5 ${
+            ACTION_TEXT[action] ?? "text-ink"
+          }`}
+        >
           <span
             aria-hidden
             className={`h-3 w-1 ${ACTION_INDICATOR[action] ?? "bg-graphite"}`}

@@ -152,8 +152,10 @@ export function AdminShell({
         ) : null}
       </AnimatePresence>
 
-      <div className="mx-auto flex max-w-6xl gap-8 px-6 py-8 md:py-14">
-        <aside className="hidden w-44 shrink-0 flex-col gap-10 md:flex">
+      <div className="mx-auto flex max-w-6xl items-start gap-8 px-6 py-8 md:py-14">
+        {/* Sticky sidebar — stays in place while the main column scrolls.
+            Top offset (~73px) clears the sticky header. */}
+        <aside className="sticky top-[73px] hidden w-44 shrink-0 flex-col gap-10 self-start md:flex">
           <AdminNav />
           {themeSwitcher}
           <p className="mt-auto font-mono text-[11px] leading-relaxed text-graphite">
