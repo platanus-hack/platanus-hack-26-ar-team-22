@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Libreto — Tranquera · 3 min</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #EFEDE6;
+    --ink: #1C1B18;
+    --graphite: #7C7A72;
+    --graphite-dark: #5C5A52;
+    --accent: #D9A441;
+    --danger: #B23A3A;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+    font-size: 17px;
+    line-height: 1.55;
+  }
+
+  /* ── HEADER ── */
+  .title {
+    font-weight: 700;
+    font-size: 28px;
+    letter-spacing: -0.03em;
+    margin: 0 0 6px;
+  }
+  .meta {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    color: var(--graphite);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    margin-bottom: 40px;
+  }
+
+  /* ── TIMER BAR ── */
+  .timer-bar {
+    display: flex;
+    gap: 0;
+    margin-bottom: 48px;
+    border: 1px solid var(--graphite-dark);
+    overflow: hidden;
+  }
+  .timer-seg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 4px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    color: var(--graphite);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-right: 1px solid var(--graphite-dark);
+    gap: 3px;
+  }
+  .timer-seg:last-child { border-right: none; }
+  .timer-seg strong { font-size: 13px; color: var(--ink); font-weight: 600; letter-spacing: -0.01em; }
+  .timer-seg--demo { background: var(--ink); color: var(--paper); }
+  .timer-seg--demo strong { color: var(--paper); }
+
+  /* ── SLIDE BLOCK ── */
+  .slide {
+    margin-bottom: 40px;
+    padding-bottom: 40px;
+    border-bottom: 1px solid var(--graphite-dark);
+  }
+  .slide:last-child { border-bottom: none; }
+
+  .slide__head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    margin-bottom: 16px;
+  }
+  .slide__num {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--graphite);
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    flex-shrink: 0;
+  }
+  .slide__name {
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+  }
+  .slide__time {
+    margin-left: auto;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 3px 10px;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+  .slide__time--demo {
+    background: var(--accent);
+    color: var(--ink);
+  }
+
+  /* ── SCRIPT TEXT ── */
+  .script {
+    color: var(--ink);
+    margin: 0 0 12px;
+    font-size: 17px;
+    line-height: 1.6;
+  }
+  .script + .script { margin-top: 14px; }
+  .script strong { font-weight: 600; }
+  .script em { font-style: normal; color: var(--graphite); }
+
+  /* ── ACTION CALLOUT ── */
+  .action {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 13px;
+    color: var(--graphite);
+    background: #E8E6DF;
+    padding: 10px 14px;
+    margin: 12px 0;
+    line-height: 1.5;
+  }
+  .action::before {
+    content: "→";
+    flex-shrink: 0;
+    color: var(--graphite-dark);
+    font-weight: 600;
+  }
+
+  /* ── DEMO BLOCK ── */
+  .demo-block {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 24px 28px;
+    margin: 0;
+  }
+  .demo-block .script {
+    color: var(--paper);
+  }
+  .demo-block .action {
+    background: #2C2B28;
+    color: #9C9A92;
+  }
+  .demo-block .action::before { color: var(--accent); }
+  .demo-block .script strong { color: var(--paper); }
+  .demo-block .script em { color: #5C5A52; }
+  .demo-timer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #2C2B28;
+  }
+
+  /* ── TIPS ── */
+  .tips {
+    background: #E8E6DF;
+    padding: 20px 24px;
+    margin-top: 48px;
+  }
+  .tips h3 {
+    font-size: 13px;
+    font-family: "IBM Plex Mono", monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    margin: 0 0 14px;
+    color: var(--graphite);
+    font-weight: 500;
+  }
+  .tips ul { margin: 0; padding-left: 18px; }
+  .tips li { font-size: 14px; color: var(--graphite-dark); line-height: 1.6; margin-bottom: 6px; }
+  .tips li strong { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<h1 class="title">Tranquera — Libreto</h1>
+<div class="meta">Platanus Hack 26 · 3 minutos exactos · Demo 120s</div>
+
+<!-- BARRA VISUAL DE TIEMPO -->
+<div class="timer-bar">
+  <div class="timer-seg" style="flex: 20;">
+    <strong>0:00</strong>
+    Samsung
+    <strong>20s</strong>
+  </div>
+  <div class="timer-seg" style="flex: 10;">
+    <strong>0:20</strong>
+    Marca
+    <strong>10s</strong>
+  </div>
+  <div class="timer-seg" style="flex: 15;">
+    <strong>0:30</strong>
+    Solución
+    <strong>15s</strong>
+  </div>
+  <div class="timer-seg timer-seg--demo" style="flex: 120;">
+    <strong>0:45</strong>
+    ── DEMO ──
+    <strong>2:00</strong>
+  </div>
+  <div class="timer-seg" style="flex: 10;">
+    <strong>2:45</strong>
+    Equipo
+    <strong>10s</strong>
+  </div>
+  <div class="timer-seg" style="flex: 5;">
+    <strong>2:55</strong>
+    Fin
+    <strong>5s</strong>
+  </div>
+</div>
+
+
+<!-- SLIDE 1 — SAMSUNG -->
+<div class="slide">
+  <div class="slide__head">
+    <span class="slide__num">Slide 01</span>
+    <span class="slide__name">Samsung cold open</span>
+    <span class="slide__time">0:00 — 0:20</span>
+  </div>
+
+  <div class="action">Avanzar a slide 1. Esperar 2 segundos en silencio — dejar que el "3" hable solo.</div>
+
+  <p class="script">
+    "En abril de 2023, ingenieros de Samsung pegaron
+    <strong>código interno en ChatGPT</strong>.
+    Tres veces. En veinte días."
+  </p>
+  <p class="script">
+    "<strong>Credenciales internas</strong> en el código."
+    <em style="font-size:14px;display:block;margin-top:4px;">[pausa]</em>
+  </p>
+  <p class="script">
+    "<strong>IP propietaria</strong> — código que nunca debió salir de Samsung."
+    <em style="font-size:14px;display:block;margin-top:4px;">[pausa]</em>
+  </p>
+  <p class="script">
+    "<strong>Minutas de reuniones internas</strong> subidas como texto."
+    <em style="font-size:14px;display:block;margin-top:4px;">[pausa]</em>
+  </p>
+  <p class="script">
+    "Samsung prohibió toda IA generativa. Baneó a sus devs."
+  </p>
+  <p class="script">
+    "<em>El dev no falló. Falló el sistema que no tenía reglas.</em>"
+  </p>
+</div>
+
+
+<!-- SLIDE 2 — BRAND REVEAL -->
+<div class="slide">
+  <div class="slide__head">
+    <span class="slide__num">Slide 02</span>
+    <span class="slide__name">Brand reveal</span>
+    <span class="slide__time">0:20 — 0:30</span>
+  </div>
+
+  <div class="action">Avanzar. Pausa breve para que vean el wordmark.</div>
+
+  <p class="script">
+    "<strong>Tranquera</strong> es ese sistema.
+    El punto de alineación entre la organización,
+    los devs y los modelos."
+  </p>
+</div>
+
+
+<!-- SLIDE 3 — SOLUCIÓN SAMSUNG -->
+<div class="slide">
+  <div class="slide__head">
+    <span class="slide__num">Slide 03</span>
+    <span class="slide__name">Con las reglas correctas</span>
+    <span class="slide__time">0:30 — 0:45</span>
+  </div>
+
+  <div class="action">Avanzar. Señalar cada fila mientras nombrás la acción.</div>
+
+  <p class="script">
+    "Con las reglas correctas, ninguno de esos tres incidentes
+    hubiera salido de la empresa."
+  </p>
+  <p class="script">
+    "<strong>BLOCK</strong> — las credenciales detectadas. El prompt no sale."
+  </p>
+  <p class="script">
+    "<strong>REDACT</strong> — la IP propietaria redactada automáticamente.
+    La respuesta llega limpia, sin IP."
+  </p>
+  <p class="script">
+    "<strong>WARN</strong> — las minutas detectadas, el admin notificado.
+    Trazabilidad completa."
+  </p>
+  <p class="script">
+    "<em>El dev seguía trabajando. La empresa mantenía el control.</em>"
+  </p>
+</div>
+
+
+<!-- SLIDE 4 — DEMO -->
+<div class="slide">
+  <div class="slide__head">
+    <span class="slide__num">Slide 04</span>
+    <span class="slide__name">Demo en vivo</span>
+    <span class="slide__time timer-seg--demo" style="background:var(--accent);color:var(--ink);padding:3px 10px;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;letter-spacing:.06em;margin-left:auto;flex-shrink:0;">0:45 — 2:45</span>
+  </div>
+
+  <div class="demo-block">
+    <div class="demo-timer">⏱ 120 segundos · hablar mientras corre</div>
+
+    <div class="action">Mostrar terminal + abrir /admin/events en otra ventana. Split screen.</div>
+
+    <p class="script">
+      "Acá tengo Claude Code apuntando a nuestro proxy —
+      <strong>exporté ANTHROPIC_BASE_URL a tranquera</strong>.
+      El dev no nota nada."
+    </p>
+
+    <div class="action">Ejecutar: <code>$ claude "explicame el patrón Observer en TypeScript"</code></div>
+
+    <p class="script">
+      "Prompt normal. Pasó sin fricción.
+      <strong>8 milisegundos de overhead</strong>.
+      En el panel: LOG — forwarded."
+    </p>
+
+    <div class="action">Ejecutar: <code>$ claude "ayudame con esto: AKIAIOSFODNN7EXAMPLE..."</code></div>
+
+    <p class="script">
+      "AWS key. La capa regex la detectó en <strong>3 milisegundos</strong>
+      — antes de tocar Anthropic.
+      Claude Code muestra el mensaje de política. <strong>BLOCK</strong>."
+    </p>
+
+    <div class="action">Ejecutar: <code>$ claude "escribime un email para el cliente Acme Corp..."</code></div>
+
+    <p class="script">
+      "Y acá lo diferente.
+      Este prompt es <strong>legítimo</strong> — el dev está haciendo su trabajo.
+      Pero la regla del admin dice: no menciones nombres de clientes."
+    </p>
+    <p class="script">
+      "Tranquera <strong>redacta</strong> el nombre. La respuesta llega limpia.
+      El dev no lo nota. La empresa no pierde IP."
+    </p>
+
+    <div class="action">Señalar el panel /admin/events.</div>
+
+    <p class="script">
+      "Tres decisiones. Tres trazas. <strong>Auditable</strong>,
+      listo para un compliance officer."
+    </p>
+  </div>
+</div>
+
+
+<!-- SLIDE 5 — EQUIPO -->
+<div class="slide">
+  <div class="slide__head">
+    <span class="slide__num">Slide 05</span>
+    <span class="slide__name">Equipo</span>
+    <span class="slide__time">2:45 — 2:55</span>
+  </div>
+
+  <div class="action">Avanzar. Hablar rápido y con convicción.</div>
+
+  <p class="script">
+    "La organización, los devs y los modelos
+    <strong>persiguen el mismo objetivo</strong> —
+    Tranquera es el punto de alineación."
+  </p>
+  <p class="script">
+    "Lo construimos porque lo necesitábamos.
+    <em>Venimos de MercadoLibre y empresas donde este problema ya existe.</em>"
+  </p>
+</div>
+
+
+<!-- SLIDE 6 — GRACIAS -->
+<div class="slide">
+  <div class="slide__head">
+    <span class="slide__num">Slide 06</span>
+    <span class="slide__name">Gracias + QR</span>
+    <span class="slide__time">2:55 — 3:00</span>
+  </div>
+
+  <div class="action">Avanzar. Señalar el QR.</div>
+
+  <p class="script">
+    "<strong>tranquera.vercel.app</strong> — pueden escanearlo ahora."
+  </p>
+</div>
+
+
+<!-- TIPS -->
+<div class="tips">
+  <h3>// Recordatorios antes de subir</h3>
+  <ul>
+    <li><strong>Setup pre-demo:</strong> terminal abierta, <code>ANTHROPIC_BASE_URL</code> exportado, /admin/events cargado en otra ventana.</li>
+    <li><strong>Si la demo se cae:</strong> avanzar al slide de equipo sin pausa y decir "el video de backup está en el repo".</li>
+    <li><strong>No decir:</strong> "AI safety", "escudo", "shield". Sí decir: "firewall", "punto de alineación", "reglas correctas".</li>
+    <li><strong>Ritmo:</strong> en el Samsung slide, leer los tres incidentes UNO POR UNO con pausa entre ellos. El silencio hace el trabajo — no apurarse. Acelerar un poco en la demo.</li>
+    <li><strong>Objetivo del jurado:</strong> que al final pueda decir en una frase qué hace Tranquera. Si lo logran, ganaron.</li>
+  </ul>
+</div>
+
+</body>
+</html>

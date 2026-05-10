@@ -85,11 +85,14 @@
   .cold { display: flex; flex-direction: column; gap: clamp(20px, 3vh, 40px); justify-content: center; }
   .cold__head { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.22em; }
   .cold__head::before { content: "// "; }
-  .cold__num { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 700; font-size: clamp(140px, 22vw, 320px); letter-spacing: -0.06em; line-height: 0.8; color: var(--paper); }
-  .cold__claim { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; font-size: clamp(32px, 4.4vw, 64px); letter-spacing: -0.025em; line-height: 1.05; color: var(--paper); max-width: 20ch; margin: 0; }
+  .cold__num { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 700; font-size: clamp(180px, 30vw, 440px); letter-spacing: -0.06em; line-height: 0.78; color: var(--paper); }
+  .cold__claim { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; font-size: clamp(28px, 3.8vw, 56px); letter-spacing: -0.025em; line-height: 1.05; color: var(--paper); max-width: 20ch; margin: 0; }
   .cold__claim em { font-style: normal; color: var(--graphite); }
-  .cold__body { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--graphite); font-size: clamp(13px, 1.05vw, 16px); line-height: 1.6; max-width: 60ch; margin: 0; }
-  .cold__body strong { color: var(--paper); font-weight: 500; }
+  .cold__incidents { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--graphite-dark); margin-top: 4px; }
+  .cold__incident { display: flex; align-items: baseline; gap: clamp(14px, 1.8vw, 24px); padding: clamp(10px, 1.4vh, 16px) 0; border-bottom: 1px solid var(--graphite-dark); }
+  .cold__incident-num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; color: var(--graphite-dark); letter-spacing: 0.14em; flex-shrink: 0; }
+  .cold__incident-text { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: clamp(13px, 1.1vw, 16px); color: var(--graphite); line-height: 1.4; }
+  .cold__incident-text strong { color: var(--paper); font-weight: 500; }
   .cold__source { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--graphite); font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; }
   .cold__source::before { content: "// fuente: "; }
 
@@ -187,6 +190,8 @@
   .team__names { display: flex; gap: clamp(20px, 2.5vw, 40px); align-items: baseline; border-top: 1px solid var(--graphite-dark); padding-top: 24px; flex-wrap: wrap; }
   .team__names span { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; font-size: clamp(22px, 2.8vw, 42px); letter-spacing: -0.02em; color: var(--paper); }
   .team__handles { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; color: var(--graphite); letter-spacing: 0.04em; line-height: 1.8; }
+  .team__vision { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; font-size: clamp(15px, 1.3vw, 20px); letter-spacing: -0.01em; color: var(--paper); border-top: 1px solid var(--graphite-dark); padding-top: 20px; line-height: 1.4; max-width: 48ch; }
+  .team__vision em { font-style: normal; color: var(--graphite); }
 
   /* ══════════════════════════════════════════════
      SLIDE 7 — CIERRE
@@ -222,14 +227,21 @@
     <div class="stage cold">
       <div class="cold__head">CASO DOCUMENTADO · CHATGPT · INCIDENTE INTERNO</div>
       <div class="cold__num">3</div>
-      <p class="cold__claim">leaks de código en <em>veinte días.</em></p>
-      <p class="cold__body">
-        Samsung no falló por usar IA. Falló porque
-        <strong>la organización, sus devs y los modelos</strong>
-        operaban sin ningún punto de alineación.
-        Sin política. Sin trazabilidad. Sin acuerdo entre las partes.
-        El único remedio fue <strong>el ban</strong>.
-      </p>
+      <p class="cold__claim">incidentes en <em>veinte días.</em></p>
+      <div class="cold__incidents">
+        <div class="cold__incident">
+          <span class="cold__incident-num">01 ·</span>
+          <span class="cold__incident-text"><strong>Código fuente con credenciales internas</strong> pegado en el chat</span>
+        </div>
+        <div class="cold__incident">
+          <span class="cold__incident-num">02 ·</span>
+          <span class="cold__incident-text"><strong>IP propietaria</strong> — algoritmo de optimización enviado al modelo</span>
+        </div>
+        <div class="cold__incident">
+          <span class="cold__incident-num">03 ·</span>
+          <span class="cold__incident-text"><strong>Minutas confidenciales</strong> de reunión interna subidas como texto</span>
+        </div>
+      </div>
       <div class="cold__source">Bloomberg · 2 de mayo de 2023</div>
     </div>
 
@@ -294,15 +306,15 @@
       <div class="remedy">
         <div class="remedy__row remedy__row--block">
           <span class="remedy__action">BLOCK</span>
-          <p class="remedy__desc"><strong>Código fuente de semiconductores</strong> pegado en el prompt. No llega al modelo.</p>
+          <p class="remedy__desc"><strong>Credenciales internas detectadas</strong> en el código. El prompt no llega al modelo.</p>
         </div>
         <div class="remedy__row remedy__row--redact">
           <span class="remedy__action">REDACT</span>
-          <p class="remedy__desc"><strong>Código de optimización interna</strong> enviado al chat. Sale limpio, sin IP.</p>
+          <p class="remedy__desc"><strong>IP propietaria redactada</strong> automáticamente. La respuesta llega limpia, sin IP.</p>
         </div>
         <div class="remedy__row remedy__row--warn">
           <span class="remedy__action">WARN</span>
-          <p class="remedy__desc"><strong>Transcripción de reunión interna</strong> subida como texto. El admin lo supo.</p>
+          <p class="remedy__desc"><strong>Minutas confidenciales detectadas.</strong> El prompt pasó, el admin fue notificado. Trazabilidad completa.</p>
         </div>
       </div>
 
@@ -323,6 +335,21 @@
         <span class="brand__name">tranquera</span>
       </div>
     </footer>
+  </section>
+
+  <!-- ============================================================
+       DEMO
+       ============================================================ -->
+  <section class="slide" id="s-demo" style="justify-content: center; align-items: center;">
+    <div style="
+      font-family: 'IBM Plex Sans', system-ui, sans-serif;
+      font-weight: 700;
+      font-size: clamp(80px, 14vw, 200px);
+      letter-spacing: -0.04em;
+      line-height: 1;
+      color: var(--paper);
+      text-align: center;
+    ">Demo</div>
   </section>
 
   <!-- ============================================================
@@ -349,6 +376,10 @@
       <div class="team__handles">
         @Christian-Rojas-Rodriguez · @fede-h · @5y5F4il · @Jjat00 · @tomileonel
       </div>
+      <p class="team__vision">
+        Lo construimos porque lo necesitábamos.<br />
+        <em>Venimos de MercadoLibre y empresas donde este problema ya existe.</em>
+      </p>
     </div>
 
     <footer class="slide-footer">
