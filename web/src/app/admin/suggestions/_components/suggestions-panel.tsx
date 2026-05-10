@@ -7,13 +7,40 @@ type Suggestion = {
   id: string;
   proposedSlug: string;
   proposedDomain: string;
+  proposedLayer?: string;
   proposedRule: string;
+  proposedPattern?: string | null;
   proposedAction: string;
   proposedSeverity: string;
   sourceHint: string | null;
   status: string;
   matchCount: number;
+  examples?: unknown;
 };
+
+export type CurrentRuleSnapshot = {
+  slug: string;
+  domain: string;
+  layer: string;
+  rule: string;
+  pattern: string | null;
+  action: string;
+  severity: string;
+  isActive: boolean;
+};
+
+type ExampleHit = {
+  traceId?: string;
+  promptRedacted?: string;
+  prompt_redacted?: string;
+  createdAt?: string;
+  created_at?: string;
+};
+
+function asExamples(value: unknown): ExampleHit[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((v): v is ExampleHit => typeof v === "object" && v !== null);
+}
 
 const DOMAIN_LABELS: Record<string, string> = {
   credentials: "credenciales",
@@ -55,8 +82,10 @@ type SuggestorRunResult = {
 
 export function SuggestionsPanel({
   initialSuggestions,
+  currentBySlug,
 }: {
   initialSuggestions: Suggestion[];
+  currentBySlug: Record<string, CurrentRuleSnapshot>;
 }) {
   const [suggestions, setSuggestions] = useState(initialSuggestions);
   const [, startTransition] = useTransition();
@@ -184,7 +213,12 @@ export function SuggestionsPanel({
         ) : (
           <ul className="flex flex-col gap-3">
             {pending.map((s) => (
-              <SuggestionCard key={s.id} s={s} onDecide={decide} />
+              <SuggestionCard
+                key={s.id}
+                s={s}
+                current={currentBySlug[s.proposedSlug] ?? null}
+                onDecide={decide}
+              />
             ))}
           </ul>
         )}
@@ -197,7 +231,13 @@ export function SuggestionsPanel({
           </span>
           <ul className="flex flex-col gap-3 opacity-60">
             {decided.map((s) => (
-              <SuggestionCard key={s.id} s={s} onDecide={decide} decided />
+              <SuggestionCard
+                key={s.id}
+                s={s}
+                current={currentBySlug[s.proposedSlug] ?? null}
+                onDecide={decide}
+                decided
+              />
             ))}
           </ul>
         </div>
@@ -208,13 +248,16 @@ export function SuggestionsPanel({
 
 function SuggestionCard({
   s,
+  current,
   onDecide,
   decided = false,
 }: {
   s: Suggestion;
+  current: CurrentRuleSnapshot | null;
   onDecide: (id: string, action: "accept" | "reject") => void;
   decided?: boolean;
 }) {
+  const examples = asExamples(s.examples).slice(0, 2);
   return (
     <li
       className="border border-graphite-dark/20 p-5"
@@ -231,6 +274,16 @@ function SuggestionCard({
           </span>
         )}
 
+        <span
+          className={`border px-1.5 py-0.5 font-mono text-[11px] uppercase tracking-wider ${
+            current
+              ? "border-graphite-dark/30 text-graphite"
+              : "border-ink text-ink"
+          }`}
+        >
+          // {current ? "actualiza regla" : "regla nueva"}
+        </span>
+
         <span className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-ink">
           <span
             aria-hidden
@@ -246,21 +299,67 @@ function SuggestionCard({
         </span>
       </div>
 
-      <p className="mb-3 text-sm leading-relaxed text-graphite-dark">
-        {s.proposedRule}
-      </p>
+      {/* Side-by-side diff: visible only when there is an existing rule. */}
+      {current ? (
+        <div className="mb-4 grid gap-3 md:grid-cols-2">
+          <DiffPane
+            label="// actual"
+            domain={DOMAIN_LABELS[current.domain] ?? current.domain}
+            layer={current.layer}
+            action={current.action}
+            severity={SEVERITY_LABELS[current.severity] ?? current.severity}
+            rule={current.rule}
+            faded
+          />
+          <DiffPane
+            label="// propuesta"
+            domain={DOMAIN_LABELS[s.proposedDomain] ?? s.proposedDomain}
+            layer={s.proposedLayer ?? "—"}
+            action={s.proposedAction}
+            severity={SEVERITY_LABELS[s.proposedSeverity] ?? s.proposedSeverity}
+            rule={s.proposedRule}
+          />
+        </div>
+      ) : (
+        <p className="mb-3 text-sm leading-relaxed text-graphite-dark">
+          {s.proposedRule}
+        </p>
+      )}
 
-      <div className="flex items-center gap-4 font-mono text-[11px] text-graphite">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[11px] text-graphite">
         <span>{DOMAIN_LABELS[s.proposedDomain] ?? s.proposedDomain}</span>
         <span>·</span>
-        <span>severidad {SEVERITY_LABELS[s.proposedSeverity] ?? s.proposedSeverity}</span>
+        <span>
+          severidad {SEVERITY_LABELS[s.proposedSeverity] ?? s.proposedSeverity}
+        </span>
         {s.matchCount > 0 && (
           <>
             <span>·</span>
-            <span>{s.matchCount} matches retroactivos</span>
+            <span className="font-semibold text-ink">
+              {s.matchCount} matches retroactivos
+            </span>
           </>
         )}
       </div>
+
+      {examples.length > 0 && (
+        <div className="mt-3 flex flex-col gap-1.5 border-t border-graphite-dark/15 pt-3">
+          <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-graphite">
+            // ejemplos · matchearían
+          </span>
+          {examples.map((ex, i) => {
+            const text = ex.promptRedacted ?? ex.prompt_redacted ?? "";
+            return (
+              <p
+                key={(ex.traceId ?? "") + i}
+                className="break-words bg-paper-soft/40 p-2 font-mono text-[11px] leading-relaxed text-ink"
+              >
+                {text.length > 140 ? `${text.slice(0, 137)}…` : text}
+              </p>
+            );
+          })}
+        </div>
+      )}
 
       {!decided && (
         <div className="mt-4 flex items-center gap-3">
@@ -282,5 +381,53 @@ function SuggestionCard({
         </div>
       )}
     </li>
+  );
+}
+
+function DiffPane({
+  label,
+  domain,
+  layer,
+  action,
+  severity,
+  rule,
+  faded = false,
+}: {
+  label: string;
+  domain: string;
+  layer: string;
+  action: string;
+  severity: string;
+  rule: string;
+  faded?: boolean;
+}) {
+  return (
+    <div
+      className={`flex flex-col gap-2 border p-3 ${
+        faded
+          ? "border-graphite-dark/15 bg-paper-soft/30 text-graphite-dark"
+          : "border-graphite-dark/30 bg-paper text-ink"
+      }`}
+      style={{ borderRadius: "var(--radius)" }}
+    >
+      <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-graphite">
+        {label}
+      </span>
+      <p className="text-sm leading-relaxed">{rule}</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[10px] uppercase tracking-wider text-graphite">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className={`h-3 w-1 ${ACTION_INDICATOR[action] ?? "bg-graphite"}`}
+          />
+          <span className={ACTION_WEIGHT[action] ?? "font-normal"}>
+            {action}
+          </span>
+        </span>
+        <span>· {layer}</span>
+        <span>· {domain}</span>
+        <span>· sev {severity}</span>
+      </div>
+    </div>
   );
 }
