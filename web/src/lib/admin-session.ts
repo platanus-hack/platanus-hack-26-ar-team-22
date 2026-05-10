@@ -4,15 +4,15 @@
 //      session real de Auth.js. Fase 2 va a resolver el `orgId` mirando
 //      el email del user contra members + organizations.
 //
-//   2. Demo bypass (sin Google config): devuelve la mock session si la
-//      cookie `admin_session=demo` está presente. Mantiene la demo del
-//      pitch funcionando sin tener que loguear.
+//   2. Demo bypass: devuelve la mock session si el modo demo está habilitado
+//      y la cookie `admin_session=demo` está presente.
 //
 // Las dos formas devuelven el mismo shape, así que los callers no se
 // enteran del modo.
 
 import { cookies } from "next/headers";
 import { auth, isAuthConfigured } from "@/auth";
+import { isDemoAdminModeEnabled } from "@/lib/auth-mode";
 import { createOrgForNewAdmin } from "@/lib/org-resolution";
 
 export const ADMIN_COOKIE = "admin_session";
@@ -52,6 +52,8 @@ export async function getAdminSession(): Promise<AdminSession | null> {
       image: session.user.image,
     };
   }
+
+  if (!isDemoAdminModeEnabled()) return null;
 
   const jar = await cookies();
   const value = jar.get(ADMIN_COOKIE)?.value;

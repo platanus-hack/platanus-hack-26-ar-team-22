@@ -284,7 +284,7 @@ pnpm install
 pnpm db:migrate                   # idempotente
 pnpm db:seed                      # demo data: 25 policies, 25 interactions, 6 sugerencias
 cp .env.example .env.local
-# .env.local — GOOGLE_CLIENT_ID/SECRET para Auth.js, o vacío para modo demo
+# .env.local — GOOGLE_CLIENT_ID/SECRET para Auth.js, o vacío para modo demo local
 pnpm dev                          # http://localhost:3000
 
 # 3. Interceptor (otra terminal)
