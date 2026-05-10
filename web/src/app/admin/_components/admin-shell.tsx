@@ -29,8 +29,10 @@ export function AdminShell({
 }: AdminShellProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
-  const current = NAV_ITEMS.find(
-    (i) => pathname === i.href || pathname.startsWith(i.href + "/"),
+  const current = NAV_ITEMS.find((i) =>
+    "exact" in i && i.exact
+      ? pathname === i.href
+      : pathname === i.href || pathname.startsWith(i.href + "/"),
   );
   const breadcrumb = current?.label ?? "admin";
 

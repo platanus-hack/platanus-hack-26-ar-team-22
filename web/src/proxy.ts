@@ -47,9 +47,7 @@ export default auth((request) => {
   if (wantsDemo) {
     const next = request.nextUrl.clone();
     next.searchParams.delete("demo");
-    if (pathname === "/admin" || pathname === "/admin/") {
-      next.pathname = "/admin/events";
-    }
+    // /admin is the dashboard — keep the user there instead of bouncing to /events.
     const response = NextResponse.redirect(next);
     response.cookies.set(ADMIN_COOKIE, "demo", {
       httpOnly: true,

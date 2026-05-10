@@ -14,13 +14,17 @@ const REPO_URL = "https://github.com/platanus-hack/platanus-hack-26-ar-team-22";
 // Solo permitimos callbackUrls que sean rutas internas. Si alguien intenta
 // `?callbackUrl=https://malicio.us` lo descartamos y caemos al default.
 function safeCallbackUrl(raw: string | undefined): string {
-  if (!raw) return "/admin/events";
-  if (!raw.startsWith("/")) return "/admin/events";
-  if (raw.startsWith("//")) return "/admin/events";
+  if (!raw) return "/admin";
+  if (!raw.startsWith("/")) return "/admin";
+  if (raw.startsWith("//")) return "/admin";
   return raw;
 }
 
-export default async function LoginPage({
+// Renamed from `LoginPage` so the React Compiler / Next dev profiler
+// doesn't reuse the same `performance.measure("LoginPage")` key across
+// hot reloads — the previous name produced "negative time stamp" warnings
+// when the server component redirected before completing its render.
+export default async function AdminLoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ callbackUrl?: string }>;

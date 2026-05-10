@@ -4,12 +4,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+// Order = "what does the compliance officer need first?". Inicio is the
+// composite dashboard — it answers "are we aligned right now?" in one
+// glance before they drill into the live feed.
 export const NAV_ITEMS = [
+  { href: "/admin", label: "inicio", caption: "panel general", exact: true },
   { href: "/admin/events", label: "eventos", caption: "lo que pasa" },
   { href: "/admin/rules", label: "reglas", caption: "qué controla" },
-  { href: "/admin/team", label: "equipo", caption: "quién pasa" },
   { href: "/admin/suggestions", label: "sugerencias", caption: "por aprobar" },
   { href: "/admin/analytics", label: "analíticas", caption: "métricas" },
+  { href: "/admin/team", label: "equipo", caption: "quién pasa" },
 ] as const;
 
 export function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
@@ -17,8 +21,12 @@ export function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="flex flex-col gap-1" aria-label="navegación admin">
       {NAV_ITEMS.map((item) => {
+        // /admin matches exactly; nested admin routes don't claim the
+        // "inicio" tab. Other items match with prefix as before.
         const active =
-          pathname === item.href || pathname.startsWith(item.href + "/");
+          "exact" in item && item.exact
+            ? pathname === item.href
+            : pathname === item.href || pathname.startsWith(item.href + "/");
         return (
           <Link
             key={item.href}
