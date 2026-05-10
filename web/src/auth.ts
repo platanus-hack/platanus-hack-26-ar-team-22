@@ -5,6 +5,7 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth, { type DefaultSession } from "next-auth";
 import authConfig from "@/auth.config";
+import { isGoogleAuthConfigured } from "@/lib/auth-mode";
 import { resolveOrgForUser } from "@/lib/org-resolution";
 import { prisma } from "@/lib/prisma";
 
@@ -75,7 +76,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 });
 
 // Helper para detectar si Auth.js está realmente configurado.
-// Si no hay GOOGLE_CLIENT_ID, el proxy cae al bypass de cookie demo.
 export function isAuthConfigured(): boolean {
-  return Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+  return isGoogleAuthConfigured();
 }

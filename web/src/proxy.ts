@@ -1,14 +1,15 @@
 // Next.js 16 renamed Middleware → Proxy. Same lifecycle, runs before each
 // matched request.
 //
-// Modo híbrido (mientras Auth.js no esté configurado en prod):
+// Modo híbrido:
 //   - Si GOOGLE_CLIENT_ID está seteado → gateá con Auth.js (JWT cookie).
-//   - Si no → mantenemos el shortcut `?demo=1` con cookie mock para no
-//     romper la demo del pitch.
+//   - Si no → el shortcut `?demo=1` solo queda activo fuera de production,
+//     o con ALLOW_DEMO_ADMIN=1.
 
 import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
 import authConfig from "@/auth.config";
+import { isDemoAdminModeEnabled, isGoogleAuthConfigured } from "@/lib/auth-mode";
 
 const ADMIN_COOKIE = "admin_session";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7d
@@ -17,9 +18,8 @@ const AUTH_LOGIN = "/admin/login";
 // Edge-safe instance: solo lee la cookie JWT, no toca DB.
 const { auth } = NextAuth(authConfig);
 
-const useGoogleAuth = Boolean(
-  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET,
-);
+const useGoogleAuth = isGoogleAuthConfigured();
+const useDemoAuth = isDemoAdminModeEnabled();
 
 export default auth((request) => {
   const { pathname, searchParams } = request.nextUrl;
@@ -43,6 +43,15 @@ export default auth((request) => {
   // ----- Modo demo (sin Google) -----
   if (!isAdminPath) return NextResponse.next();
 
+  if (!useDemoAuth) {
+    if (isPublicAdmin) return NextResponse.next();
+    if (isApi) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    const login = request.nextUrl.clone();
+    login.pathname = AUTH_LOGIN;
+    login.search = "";
+    return NextResponse.redirect(login);
+  }
+
   const wantsDemo = searchParams.get("demo") === "1";
   if (wantsDemo) {
     const next = request.nextUrl.clone();
@@ -54,6 +63,7 @@ export default auth((request) => {
       sameSite: "lax",
       path: "/",
       maxAge: COOKIE_MAX_AGE,
+      secure: process.env.NODE_ENV === "production",
     });
     return response;
   }

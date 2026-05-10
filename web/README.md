@@ -40,14 +40,15 @@ pnpm dev                 # http://localhost:3000
 
 El back-office tiene dos modos según las env vars:
 
-### Modo demo (default, sin Google)
+### Modo demo (local, sin Google)
 
-Si `GOOGLE_CLIENT_ID` está vacío, el proxy mantiene el shortcut histórico:
+Si `GOOGLE_CLIENT_ID` está vacío, el proxy mantiene el shortcut histórico fuera de producción:
 
-- `http://localhost:3000/admin?demo=1` → setea cookie `admin_session=demo` → redirige a `/admin/events`.
+- `http://localhost:3000/admin?demo=1` → setea cookie `admin_session=demo` → redirige a `/admin`.
 - Todo bajo `org_id=demo` con member mock `admin@team22.dev`.
 
 Útil para arrancar rápido y para la demo del pitch sin tener que loguear.
+En producción, si no configurás Google OAuth, el bypass queda cerrado salvo que seteés `ALLOW_DEMO_ADMIN=1` explícitamente para una demo controlada.
 
 ### Modo Google (recomendado fuera del pitch)
 
@@ -138,6 +139,9 @@ Pensado para Vercel — `vercel.json` no requerido, todo es App Router estándar
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Mismas que en local pero con `Authorized redirect URI` apuntando al dominio de prod. |
 | `AUTH_SECRET` | `openssl rand -base64 32` (uno por entorno). |
 | `AUTH_URL` | URL pública del web (ej. `https://tranquera.app`). |
+| `ALLOW_DEMO_ADMIN` | Dejar vacío en producción; `1` solo para demos controladas sin Google OAuth. |
 | `TRANQUERA_PROXY_URL` | URL del interceptor (Railway). El device-flow `/start` la inyecta en la respuesta al CLI. |
+| `CRON_SECRET` | Bearer token para `/api/cron/suggestor`; requerido en producción salvo demo controlada. |
+| `ALLOW_UNAUTHENTICATED_CRON` | Dejar vacío en producción; `1` solo para demos controladas sin bearer token. |
 
 Para más contexto del producto, leé el [README del repo](../README.md) y los [specs](../specs/README.md).
