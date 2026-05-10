@@ -16,17 +16,57 @@ Pensado para empresas LATAM que dan Claude Code a sus devs y necesitan **evidenc
 
 ## Tabla de contenidos
 
+- [Cómo se usa](#cómo-se-usa)
 - [Por qué Tranquera](#por-qué-tranquera)
 - [Las 4 layers en una imagen](#las-4-layers-en-una-imagen)
 - [Las 4 acciones del proxy](#las-4-acciones-del-proxy)
 - [Anatomía de un request](#anatomía-de-un-request)
 - [Lo más wow](#lo-más-wow)
-- [Cómo se usa](#cómo-se-usa)
 - [Quick start local](#quick-start-local)
 - [Estructura del repo](#estructura-del-repo)
 - [Stack canónico](#stack-canónico)
 - [Estado actual](#estado-actual)
 - [Equipo](#equipo)
+
+---
+
+> **App live**: [`https://tranquera.vercel.app/`](https://tranquera.vercel.app/) — landing pública + back-office del admin.
+> **CLI**: `npx tranquera@0.5.0 setup` — onboarding de devs en un comando.
+
+---
+
+## Cómo se usa
+
+### Admin (compliance / security lead)
+
+1. Entrá a [`https://tranquera.vercel.app/admin/login`](https://tranquera.vercel.app/admin/login) y loguea con Google. El primer login crea automáticamente la org y deja al usuario como **admin owner**.
+2. En `/admin/team` invitá a tus devs por email — quedan en estado *pendiente* hasta que se loguéen.
+3. En `/admin/rules` armá las políticas (regex o lenguaje natural). Cada regla tiene `slug`, `layer`, `action` y un body legible.
+4. En `/admin/events` ves cada prompt en tiempo real con atribución, regla matchada y latencia.
+5. En `/admin/analytics` ves métricas agregadas de los últimos 7 días — distribución por acción, latencia promedio, top reglas y volumen por hora.
+6. En `/admin/suggestions` revisás las reglas que el Suggestor propone (cron diario o "Run now") y aprobás las que tengan sentido.
+
+### Dev
+
+1. Recibís del admin: *"te agregué a la org en Tranquera, corré `npx tranquera setup`"*.
+2. Corré el comando — abre el browser, te loguea con Google contra `tranquera.vercel.app`, listo. El CLI escribe `ANTHROPIC_BASE_URL` en el shell rc apropiado (`~/.zshrc`, `~/.bashrc`, `~/.bash_profile` o `~/.config/fish/config.fish`).
+3. Reabrí la terminal (o `source` del rc) y usá `claude` como siempre. Cada prompt pasa por la cascada de tu org y queda atribuido a tu cuenta.
+
+```
+//  experiencia del dev en una línea
+$  npx tranquera setup
+$  source ~/.zshrc
+$  claude "ayudame a refactorear esto"   # va por la tranquera, pero el dev no lo nota
+```
+
+**¿Cómo se desconecta?** Un solo comando deja todo como antes:
+
+```bash
+$  npx tranquera logout              # revoca el token + borra ~/.tranquera/config.json + saca el export del rc
+$  unset ANTHROPIC_BASE_URL          # solo si la terminal ya estaba abierta (en fish: set -e ANTHROPIC_BASE_URL)
+```
+
+Detalle completo y flag `--keep-rc` en [`cli/README.md`](./cli/README.md#cómo-me-desconecto).
 
 ---
 
@@ -235,41 +275,6 @@ Esto fija el tono: Tranquera no es alarmista. Es infraestructura.
 
 ---
 
-## Cómo se usa
-
-### Admin (compliance / security lead)
-
-1. Abre `https://<tu-dominio>/admin/login`, loguea con Google. El primer login crea automáticamente la org y deja al usuario como **admin owner**.
-2. En `/admin/team` invita a sus devs por email — quedan en estado *pendiente* hasta que se loguéen.
-3. En `/admin/rules` arma las políticas (regex o lenguaje natural). Cada regla tiene `slug`, `layer`, `action` y un body legible.
-4. En `/admin/events` ve cada prompt en tiempo real con atribución, regla matchada y latencia.
-5. En `/admin/analytics` ve métricas agregadas de los últimos 7 días — distribución por acción, latencia promedio, top reglas y volumen por hora.
-6. En `/admin/suggestions` revisa las reglas que el Suggestor propone (cron diario o "Run now") y aprueba las que tengan sentido.
-
-### Dev
-
-1. Recibe del admin: *"te agregué a la org en Tranquera, corré `npx tranquera setup`"*.
-2. Corre el comando — abre el browser, loguea con Google, listo. El CLI escribe `ANTHROPIC_BASE_URL` en el shell rc apropiado (`~/.zshrc`, `~/.bashrc`, `~/.bash_profile` o `~/.config/fish/config.fish`).
-3. Reabre la terminal (o `source` del rc) y usa `claude` como siempre. Cada prompt pasa por la cascada de su org y queda atribuido a su cuenta.
-
-```
-//  experiencia del dev en una línea
-$  npx tranquera setup
-$  source ~/.zshrc
-$  claude "ayudame a refactorear esto"   # va por la tranquera, pero el dev no lo nota
-```
-
-**¿Cómo se desconecta?** Un solo comando deja todo como antes:
-
-```bash
-$  npx tranquera logout              # revoca el token + borra ~/.tranquera/config.json + saca el export del rc
-$  unset ANTHROPIC_BASE_URL          # solo si la terminal ya estaba abierta (en fish: set -e ANTHROPIC_BASE_URL)
-```
-
-Detalle completo y flag `--keep-rc` en [`cli/README.md`](./cli/README.md#cómo-me-desconecto).
-
----
-
 ## Quick start local
 
 Requiere Docker, Node 20+, pnpm y Python 3.12+ con [`uv`](https://github.com/astral-sh/uv).
@@ -375,7 +380,7 @@ Hack en curso · Buenos Aires · 2026.
 |---|---|---|
 | Back-office + landing | https://tranquera.vercel.app | Vercel |
 | Proxy (Layer 2) | https://platanus-hack-26-ar-team-22-production.up.railway.app | Railway |
-| CLI publicado | `npx tranquera@0.4.2` | npm |
+| CLI publicado | `npx tranquera@0.5.0` | npm |
 
 ### Status por componente
 
@@ -384,16 +389,17 @@ Hack en curso · Buenos Aires · 2026.
 | Interceptor — Layer 1 (regex) | shipped — BLOCK + REDACT + LOG/WARN passthrough |
 | Interceptor — Layer 2 (pattern) | roadmap (`interceptor/README.md`) |
 | Interceptor — Layer 3 (Haiku judge) | shipped — BLOCK + LOG; reglas NL viajan completas, fail-open con flag |
-| Atribución por dev (path token) | shipped — `POST /cli/{token}/v1/messages` |
+| Atribución por dev (path token) | shipped — `POST /cli/{token}/v1/messages`; el endpoint sin token (`POST /v1/messages`) cierra con 401 para que ningún prompt quede sin atribuir |
 | Acción REDACT | shipped (regex layer enmascara y forwardea) |
 | Acción WARN | shipped — viaja en `interactions.action`, visible en `/admin/events`. Notif separada (email/slack) → roadmap |
+| Admin — `/admin` (home dashboard) | shipped — KPIs del día, paleta de acciones funcionales, links a /events |
 | Admin — `/admin/events` | shipped — feed real-time (polling 3s), filtros por acción, atribución por dev |
 | Admin — `/admin/rules` | shipped — CRUD reglas regex + NL, toggle activo/inactivo |
 | Admin — `/admin/analytics` | shipped — distribución por acción 7d, latencia, top reglas, volumen por hora |
 | Admin — `/admin/team` | shipped — invitaciones, roles (`admin`/`dev`), last-seen, revocación de tokens |
 | Admin — `/admin/suggestions` | shipped — approval queue + botón "Run now" |
 | AI Suggestor | shipped — Vercel Cron diario 09:00 UTC + manual trigger; up to 5 propuestas/run |
-| CLI `tranquera` | shipped en npm v0.4.2 — `setup`, `login`, `whoami`, `status`, `logout` |
+| CLI `tranquera` | shipped en npm v0.5.0 — `setup`, `login`, `whoami`, `status`, `logout` |
 | Auth.js + Google OAuth | live |
 | Multi-tenancy | schema-ready (`org_id` en cada tabla); RLS post-hack |
 
