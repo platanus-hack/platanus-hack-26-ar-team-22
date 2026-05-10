@@ -1,0 +1,35 @@
+pitch/libreto.html
+  s_8ab0dd66409a65::t_7ee788d48c5f9a 303,306,310-318
+  s_8ab0dd66409a65::t_b64f640705af85 249,257-260,262-269
+  s_8ab0dd66409a65::t_c025b4af105d38 1-248,250-251,254-256,270-302,304-305,308-309,319-393,395-396,401-427,429-434
+  s_8ab0dd66409a65::t_44a208e4b323b7 307
+  s_8ab0dd66409a65::t_9bbe8140f8fe3c 252-253
+  s_8ab0dd66409a65::t_ce6b8c6b4bad2e 261
+  s_8ab0dd66409a65::t_ae70f34c59fb59 394,397-400
+  s_8ab0dd66409a65::t_8819dc3b0968b0 428
+pitch/deck.html
+  s_8ab0dd66409a65::t_0edab6517e1db1 313
+  s_8ab0dd66409a65::t_f3685f05ad12f2 230-233,235-237,239-241,243-244
+  s_8ab0dd66409a65::t_75e4779d317d21 193-194
+  s_8ab0dd66409a65::t_88460034e5d04f 309,317
+  s_8ab0dd66409a65::t_29e102bf3e9477 341-354
+  s_8ab0dd66409a65::t_5f0fcb038a6f6d 234,238,242
+  s_8ab0dd66409a65::t_b5689e208aeb96 88-89,91-95
+  s_8ab0dd66409a65::t_b3b07b37a20917 379-382
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "eacb0b978652e955dcabaa993ee7b1ec4357ef42",
+  "prompts": {},
+  "sessions": {
+    "s_8ab0dd66409a65": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "10f9c448-66d8-47e8-9c6b-730568d0deae",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "Christian-Rojas-Rodriguez <christianrojas.datascience@gmail.com>"
+    }
+  }
+}
