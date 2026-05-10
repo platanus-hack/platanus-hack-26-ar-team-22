@@ -4,7 +4,7 @@
 // Componentes de feedback: Toast efímero + ConfirmDialog inline.
 // Sin dep externa — todo el state lo maneja el caller.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 // =============================================================
 // Toast: notificación efímera arriba a la derecha.
@@ -74,6 +74,9 @@ export type ConfirmConfig = {
   destructive?: boolean;
 };
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 export function ConfirmDialog({
   open,
   config,
@@ -85,14 +88,51 @@ export function ConfirmDialog({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  // Cerrar con Escape.
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Cerrar con Escape, atrapar Tab adentro, y mover el foco a Cancelar
+  // cuando abre. Devuelve el foco al elemento que originó el modal cuando
+  // cierra.
   useEffect(() => {
     if (!open) return;
+    previousFocusRef.current =
+      typeof document !== "undefined"
+        ? (document.activeElement as HTMLElement | null)
+        : null;
+    // Default-cancel for destructive actions: foco arranca en Cancelar.
+    requestAnimationFrame(() => cancelRef.current?.focus());
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const card = cardRef.current;
+      if (!card) return;
+      const focusables = Array.from(
+        card.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      ).filter((el) => !el.hasAttribute("aria-hidden"));
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      previousFocusRef.current?.focus?.();
+    };
   }, [open, onCancel]);
 
   if (!open || !config) return null;
@@ -114,6 +154,7 @@ export function ConfirmDialog({
       />
       {/* Card */}
       <div
+        ref={cardRef}
         className="relative z-10 w-full max-w-md border border-graphite-dark/30 bg-paper p-6 shadow-xl"
         style={{ borderRadius: "var(--radius)" }}
       >
@@ -128,6 +169,7 @@ export function ConfirmDialog({
         ) : null}
         <div className="mt-6 flex items-center justify-end gap-3">
           <button
+            ref={cancelRef}
             type="button"
             onClick={onCancel}
             className="border border-graphite-dark/30 px-4 py-2 font-mono text-xs uppercase tracking-wider text-graphite transition-colors hover:border-ink hover:text-ink"
@@ -138,7 +180,6 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            autoFocus
             className={`px-4 py-2 font-mono text-xs uppercase tracking-wider text-paper transition-colors ${
               config.destructive
                 ? "bg-red-600 hover:bg-red-700"
