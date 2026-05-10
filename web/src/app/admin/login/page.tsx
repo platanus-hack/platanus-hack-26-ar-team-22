@@ -56,11 +56,12 @@ export default async function LoginPage({
               // ingresá
             </span>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Identificate para entrar al back-office.
+              Iniciá sesión.
             </h1>
             <p className="text-sm leading-relaxed text-graphite-dark">
-              Te asignamos a la org de tu empresa según el dominio de tu email.
-              Si es la primera vez de tu equipo, vas a poder crear la org.
+              Continuá con Google. Si te invitaron, entrás a la org de tu
+              equipo. Si todavía no estás invitado, creás una nueva como
+              admin owner.
             </p>
           </div>
 
