@@ -201,8 +201,14 @@ function MemberList({
         style={{ borderRadius: "var(--radius)" }}
       >
         {members.length === 0 ? (
-          <div className="px-4 py-8 text-center font-mono text-xs text-graphite">
-            // sin miembros en este rol
+          <div className="flex flex-col items-start gap-2 px-4 py-6 text-graphite-dark">
+            <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-graphite">
+              // sin miembros en este rol
+            </span>
+            <p className="text-sm leading-relaxed">
+              Invitá un dev por email arriba para que aparezca acá. Hasta su
+              primer login con Google queda en estado pendiente.
+            </p>
           </div>
         ) : (
           <ul>

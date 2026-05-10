@@ -260,11 +260,17 @@ export function RulesPanel({ initialRules }: { initialRules: RuleDTO[] }) {
           <tbody>
             {rules.length === 0 ? (
               <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-10 text-center font-mono text-xs text-graphite"
-                >
-                  // sin reglas todavía. crea la primera arriba.
+                <td colSpan={6} className="px-4 py-8">
+                  <div className="flex flex-col items-start gap-2 text-graphite-dark">
+                    <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-graphite">
+                      // sin reglas todavía
+                    </span>
+                    <p className="text-sm leading-relaxed">
+                      Llená el formulario de arriba o importá un Google Doc
+                      con políticas — el proxy recoge la regla en el próximo
+                      prompt, sin reload.
+                    </p>
+                  </div>
                 </td>
               </tr>
             ) : null}

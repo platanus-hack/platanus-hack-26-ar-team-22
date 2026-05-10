@@ -203,13 +203,22 @@ export function SuggestionsPanel({
           // {pending.length} pendientes
         </span>
         {pending.length === 0 ? (
-          <p className="font-mono text-xs text-graphite">
-            // sin sugerencias pendientes. importá un Google Doc desde{" "}
-            <a href="/admin/rules" className="underline">
-              reglas
-            </a>
-            .
-          </p>
+          <div
+            className="flex flex-col items-start gap-2 border border-graphite-dark/15 bg-paper-soft/30 p-5"
+            style={{ borderRadius: "var(--radius)" }}
+          >
+            <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-graphite">
+              // sin sugerencias pendientes
+            </span>
+            <p className="text-sm leading-relaxed text-graphite-dark">
+              Cuando el AI Suggestor analice el tráfico — o cuando importes
+              un Google Doc desde{" "}
+              <a href="/admin/rules" className="text-ink underline underline-offset-4">
+                reglas
+              </a>
+              {" "}— las propuestas aparecen acá para que decidas.
+            </p>
+          </div>
         ) : (
           <ul className="flex flex-col gap-3">
             {pending.map((s) => (
