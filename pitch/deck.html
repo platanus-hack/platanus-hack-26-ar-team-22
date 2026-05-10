@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tranquera — Platanus Hack 26 · Team 22</title>
+<meta name="description" content="Un paso controlado entre la intención y la respuesta. Firewall de Claude Code corporativo." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --paper: #EFEDE6;
+    --paper-soft: #D4D0C5;
+    --ink: #1C1B18;
+    --graphite: #7C7A72;
+    --graphite-dark: #5C5A52;
+    --warn: #D9A441;
+    --block: #B23A3A;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--ink); color: var(--paper); }
+  body {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
+
+  /* ── DECK ── */
+  .deck { height: 100vh; width: 100vw; overflow-y: scroll; scroll-snap-type: y mandatory; scroll-behavior: smooth; }
+  .deck::-webkit-scrollbar { display: none; }
+  .deck { scrollbar-width: none; }
+
+  .slide {
+    position: relative; width: 100vw; height: 100vh; scroll-snap-align: start;
+    padding: clamp(48px, 6vh, 80px) clamp(64px, 8vw, 128px);
+    display: flex; flex-direction: column; justify-content: space-between;
+    overflow: hidden; background: var(--ink); color: var(--paper);
+  }
+
+  /* ── TYPOGRAPHY ── */
+  .display { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 700; letter-spacing: -0.04em; line-height: 1.02; color: var(--paper); }
+  .display--l { font-size: clamp(40px, 6vw, 88px); }
+  .display--m { font-size: clamp(28px, 3.6vw, 56px); }
+
+  .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  .muted { color: var(--graphite); }
+
+  .caption { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--graphite); letter-spacing: 0.02em; line-height: 1.4; }
+  .caption::before { content: "// "; }
+  .caption--upper { text-transform: uppercase; letter-spacing: 0.18em; font-size: 11px; }
+
+  /* ── HEADER RAIL ── */
+  .rail { display: flex; justify-content: space-between; align-items: baseline; gap: 24px; flex-shrink: 0; }
+
+  /* ── STAGE ── */
+  .stage { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: clamp(28px, 4.5vh, 56px); min-height: 0; }
+
+  /* ── BRAND FOOTER LOCKUP ── */
+  .slide-footer { flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding-top: 16px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; }
+  .brand__icon {
+    --b: 4px;
+    width: calc(var(--b) * 8); height: calc(var(--b) * 6);
+    position: relative; flex-shrink: 0;
+  }
+  .brand__post { position: absolute; top: 0; width: var(--b); height: calc(var(--b) * 6); background: var(--graphite); }
+  .brand__post--l { left: 0; }
+  .brand__post--r { right: 0; }
+  .brand__bar { position: absolute; left: var(--b); width: calc(var(--b) * 6); height: var(--b); background: var(--graphite); }
+  .brand__bar--top { top: calc(var(--b) * 1); }
+  .brand__bar--bot { top: calc(var(--b) * 4); }
+  .brand__name {
+    font-family: "IBM Plex Sans", system-ui, sans-serif;
+    font-weight: 600; font-size: 16px;
+    letter-spacing: -0.02em; color: var(--graphite);
+  }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 1 — SAMSUNG COLD OPEN
+  ══════════════════════════════════════════════ */
+  .cold { display: flex; flex-direction: column; gap: clamp(20px, 3vh, 40px); justify-content: center; }
+  .cold__head { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.22em; }
+  .cold__head::before { content: "// "; }
+  .cold__num { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 700; font-size: clamp(140px, 22vw, 320px); letter-spacing: -0.06em; line-height: 0.8; color: var(--paper); }
+  .cold__claim { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; font-size: clamp(32px, 4.4vw, 64px); letter-spacing: -0.025em; line-height: 1.05; color: var(--paper); max-width: 20ch; margin: 0; }
+  .cold__claim em { font-style: normal; color: var(--graphite); }
+  .cold__body { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--graphite); font-size: clamp(13px, 1.05vw, 16px); line-height: 1.6; max-width: 60ch; margin: 0; }
+  .cold__body strong { color: var(--paper); font-weight: 500; }
+  .cold__source { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--graphite); font-size: 11px; text-transform: uppercase; letter-spacing: 0.18em; }
+  .cold__source::before { content: "// fuente: "; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 2 — BRAND REVEAL
+  ══════════════════════════════════════════════ */
+  .hook { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: clamp(40px, 6vw, 96px); align-items: center; }
+  .hook__copy { min-width: 0; }
+  .hook__wordmark { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; font-size: clamp(64px, 10vw, 168px); letter-spacing: -0.04em; color: var(--paper); line-height: 0.92; margin-bottom: 36px; }
+  .hook__tagline { font-weight: 600; font-size: clamp(28px, 3.4vw, 52px); letter-spacing: -0.02em; line-height: 1.1; color: var(--paper); max-width: 18ch; }
+  .hook__tagline em { font-style: normal; color: var(--graphite); }
+
+  .tranquera { --t: clamp(18px, 2vw, 28px); width: calc(var(--t) * 8); height: calc(var(--t) * 6); position: relative; flex-shrink: 0; }
+  .tranquera__post { position: absolute; top: 0; width: var(--t); height: calc(var(--t) * 6); background: var(--paper); }
+  .tranquera__post--l { left: 0; }
+  .tranquera__post--r { right: 0; }
+  .tranquera__bar { position: absolute; left: var(--t); width: calc(var(--t) * 6); height: var(--t); background: var(--paper); }
+  .tranquera__bar--top { top: calc(var(--t) * 1); }
+  .tranquera__bar--bot { top: calc(var(--t) * 4); }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 3 — SAMSUNG BRIDGE (soluciones)
+  ══════════════════════════════════════════════ */
+  .remedy { display: flex; flex-direction: column; border-top: 1px solid var(--graphite-dark); border-bottom: 1px solid var(--graphite-dark); }
+  .remedy__row {
+    display: grid; grid-template-columns: 110px 1fr;
+    align-items: center; gap: clamp(20px, 2.5vw, 36px);
+    padding: clamp(18px, 2.4vh, 28px) 0 clamp(18px, 2.4vh, 28px) 18px;
+    border-bottom: 1px solid var(--graphite-dark); position: relative;
+  }
+  .remedy__row:last-child { border-bottom: none; }
+  .remedy__row::before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 2px; }
+  .remedy__row--block::before  { background: var(--paper); }
+  .remedy__row--redact::before { background: var(--paper-soft); }
+  .remedy__row--warn::before   { background: var(--graphite); }
+  .remedy__action { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: clamp(15px, 1.3vw, 20px); letter-spacing: 0.06em; color: var(--paper); }
+  .remedy__row--block  .remedy__action { font-weight: 700; }
+  .remedy__row--redact .remedy__action { font-weight: 600; }
+  .remedy__row--warn   .remedy__action { font-weight: 500; }
+  .remedy__desc { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: clamp(13px, 1.05vw, 16px); color: var(--graphite); line-height: 1.55; margin: 0; }
+  .remedy__desc strong { color: var(--paper); font-weight: 500; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 4 — MOTOR
+  ══════════════════════════════════════════════ */
+  .cascade { display: grid; grid-template-columns: 1fr 1fr 1fr; border-top: 1px solid var(--graphite-dark); border-bottom: 1px solid var(--graphite-dark); }
+  .step { padding: clamp(20px, 2.6vh, 32px) clamp(20px, 2vw, 32px); display: flex; flex-direction: column; gap: 12px; border-right: 1px solid var(--graphite-dark); }
+  .step:last-child { border-right: none; }
+  .step__lat { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.16em; }
+  .step__name { font-weight: 600; font-size: clamp(22px, 2.2vw, 36px); letter-spacing: -0.015em; }
+  .step__detail { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: clamp(12px, 0.92vw, 14px); color: var(--graphite); line-height: 1.55; }
+
+  .actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--graphite-dark); border-bottom: 1px solid var(--graphite-dark); }
+  .action { background: var(--ink); padding: clamp(16px, 2vh, 22px) clamp(16px, 1.6vw, 22px); display: flex; align-items: baseline; gap: 14px; position: relative; }
+  .action::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 2px; background: var(--graphite); }
+  .action--redact::before { background: var(--paper-soft); }
+  .action--block::before  { background: var(--paper); }
+  .action__name { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--paper); font-size: clamp(14px, 1.1vw, 17px); letter-spacing: 0.06em; }
+  .action--log    .action__name { font-weight: 400; }
+  .action--warn   .action__name { font-weight: 500; }
+  .action--redact .action__name { font-weight: 600; }
+  .action--block  .action__name { font-weight: 700; }
+  .action__line { font-family: "IBM Plex Mono", ui-monospace, monospace; color: var(--graphite); font-size: 11px; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 5 — DEMO
+  ══════════════════════════════════════════════ */
+  .demo { display: grid; grid-template-columns: 1.1fr 1fr; gap: clamp(20px, 2vw, 32px); flex: 1; min-height: 0; }
+  .pane { border: 1px solid var(--graphite-dark); display: flex; flex-direction: column; min-height: 0; }
+  .pane__head { border-bottom: 1px solid var(--graphite-dark); padding: 12px 18px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.18em; display: flex; justify-content: space-between; align-items: center; }
+  .pane__body { padding: clamp(18px, 2.4vh, 26px); flex: 1; overflow: hidden; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: clamp(12px, 0.95vw, 14px); line-height: 1.6; }
+  .term__line { color: var(--paper); }
+  .term__line + .term__line { margin-top: clamp(12px, 1.4vh, 18px); }
+  .term__prompt { color: var(--graphite); }
+  .term__resp { color: var(--graphite); padding-left: 18px; display: block; margin-top: 4px; }
+
+  .events { display: flex; flex-direction: column; gap: clamp(14px, 1.8vh, 22px); }
+  .event { border-left: 2px solid var(--graphite); padding-left: 14px; display: flex; flex-direction: column; gap: 4px; }
+  .event__action { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; }
+  .event__rule   { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; color: var(--graphite); }
+  .event--log    { border-color: var(--graphite); }
+  .event--log    .event__action { font-weight: 400; color: var(--paper); }
+  .event--block  { border-color: var(--block); }
+  .event--block  .event__action { font-weight: 700; color: var(--block); }
+  .event--redact { border-color: var(--warn); }
+  .event--redact .event__action { font-weight: 600; color: var(--warn); }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 6 — EQUIPO
+  ══════════════════════════════════════════════ */
+  .team { justify-content: center; }
+  .team__belief { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; font-size: clamp(40px, 6vw, 88px); letter-spacing: -0.035em; line-height: 1.02; color: var(--paper); margin: 0; }
+  .team__belief em { font-style: normal; color: var(--graphite); }
+  .team__caption { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: clamp(14px, 1.2vw, 18px); color: var(--graphite); letter-spacing: 0.04em; margin: 0; }
+  .team__names { display: flex; gap: clamp(20px, 2.5vw, 40px); align-items: baseline; border-top: 1px solid var(--graphite-dark); padding-top: 24px; flex-wrap: wrap; }
+  .team__names span { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; font-size: clamp(22px, 2.8vw, 42px); letter-spacing: -0.02em; color: var(--paper); }
+  .team__handles { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11px; color: var(--graphite); letter-spacing: 0.04em; line-height: 1.8; }
+
+  /* ══════════════════════════════════════════════
+     SLIDE 7 — CIERRE
+  ══════════════════════════════════════════════ */
+  .close { display: flex; flex-direction: column; justify-content: center; gap: clamp(36px, 5vh, 56px); flex: 1; }
+  .close__wordmark { font-family: "IBM Plex Sans", system-ui, sans-serif; font-weight: 600; font-size: clamp(80px, 13vw, 220px); letter-spacing: -0.04em; line-height: 0.88; color: var(--paper); }
+  .close__line { font-weight: 600; font-size: clamp(32px, 4.2vw, 64px); letter-spacing: -0.025em; line-height: 1.05; color: var(--paper); max-width: 18ch; }
+  .close__line em { font-style: normal; color: var(--graphite); }
+  .close__principles { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--graphite); text-transform: uppercase; letter-spacing: 0.22em; }
+  .close__repo { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12px; color: var(--graphite); margin-top: 8px; }
+
+  /* ── HINT ── */
+  .hint { position: fixed; bottom: 14px; right: 18px; font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10px; color: var(--graphite); letter-spacing: 0.18em; text-transform: uppercase; pointer-events: none; opacity: 0.4; z-index: 10; }
+
+  /* ── PRINT ── */
+  @page { size: landscape; margin: 0; }
+  @media print {
+    html, body, .deck { height: auto; overflow: visible; }
+    .deck { display: block; }
+    .slide { width: 100vw; height: 100vh; page-break-after: always; break-after: page; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- ============================================================
+       01 · SAMSUNG COLD OPEN
+       ============================================================ -->
+  <section class="slide" id="s1">
+
+    <div class="stage cold">
+      <div class="cold__head">CASO DOCUMENTADO · CHATGPT · INCIDENTE INTERNO</div>
+      <div class="cold__num">3</div>
+      <p class="cold__claim">leaks de código en <em>veinte días.</em></p>
+      <p class="cold__body">
+        Samsung no falló por usar IA. Falló porque
+        <strong>la organización, sus devs y los modelos</strong>
+        operaban sin ningún punto de alineación.
+        Sin política. Sin trazabilidad. Sin acuerdo entre las partes.
+        El único remedio fue <strong>el ban</strong>.
+      </p>
+      <div class="cold__source">Bloomberg · 2 de mayo de 2023</div>
+    </div>
+
+    <footer class="slide-footer">
+      <div class="brand">
+        <div class="brand__icon" aria-hidden="true">
+          <div class="brand__post brand__post--l"></div>
+          <div class="brand__post brand__post--r"></div>
+          <div class="brand__bar brand__bar--top"></div>
+          <div class="brand__bar brand__bar--bot"></div>
+        </div>
+        <span class="brand__name">tranquera</span>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============================================================
+       02 · BRAND REVEAL
+       ============================================================ -->
+  <section class="slide" id="s2">
+
+    <div class="stage hook">
+      <div class="hook__copy">
+        <div class="hook__wordmark">tranquera</div>
+        <div class="hook__tagline">
+          Prompts alineados y entornos seguros<br />
+          <em>para todo el modelo de negocio.</em>
+        </div>
+      </div>
+      <div class="tranquera" aria-hidden="true">
+        <div class="tranquera__post tranquera__post--l"></div>
+        <div class="tranquera__post tranquera__post--r"></div>
+        <div class="tranquera__bar tranquera__bar--top"></div>
+        <div class="tranquera__bar tranquera__bar--bot"></div>
+      </div>
+    </div>
+
+    <footer class="slide-footer">
+      <div class="brand">
+        <div class="brand__icon" aria-hidden="true">
+          <div class="brand__post brand__post--l"></div>
+          <div class="brand__post brand__post--r"></div>
+          <div class="brand__bar brand__bar--top"></div>
+          <div class="brand__bar brand__bar--bot"></div>
+        </div>
+        <span class="brand__name">tranquera</span>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============================================================
+       03 · SAMSUNG BRIDGE — soluciones
+       ============================================================ -->
+  <section class="slide" id="s3">
+
+    <div class="stage">
+      <h2 class="display display--l" style="max-width: 26ch;">
+        Con las reglas correctas,<br />
+        <span class="muted">el ban nunca hubiera existido.</span>
+      </h2>
+
+      <div class="remedy">
+        <div class="remedy__row remedy__row--block">
+          <span class="remedy__action">BLOCK</span>
+          <p class="remedy__desc"><strong>Código fuente de semiconductores</strong> pegado en el prompt. No llega al modelo.</p>
+        </div>
+        <div class="remedy__row remedy__row--redact">
+          <span class="remedy__action">REDACT</span>
+          <p class="remedy__desc"><strong>Código de optimización interna</strong> enviado al chat. Sale limpio, sin IP.</p>
+        </div>
+        <div class="remedy__row remedy__row--warn">
+          <span class="remedy__action">WARN</span>
+          <p class="remedy__desc"><strong>Transcripción de reunión interna</strong> subida como texto. El admin lo supo.</p>
+        </div>
+      </div>
+
+      <p style="font-family:'IBM Plex Mono',monospace; font-size:clamp(13px,1.05vw,16px); color:var(--graphite); margin:0; line-height:1.6;">
+        El dev siguió trabajando. La empresa mantuvo el control.<br />
+        Los modelos, con las reglas de la organización.
+      </p>
+    </div>
+
+    <footer class="slide-footer">
+      <div class="brand">
+        <div class="brand__icon" aria-hidden="true">
+          <div class="brand__post brand__post--l"></div>
+          <div class="brand__post brand__post--r"></div>
+          <div class="brand__bar brand__bar--top"></div>
+          <div class="brand__bar brand__bar--bot"></div>
+        </div>
+        <span class="brand__name">tranquera</span>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============================================================
+       04 · EQUIPO
+       ============================================================ -->
+  <section class="slide" id="s6">
+
+    <div class="stage team">
+      <p class="team__belief">
+        La organización,<br />
+        los devs y los modelos<br />
+        <em>persiguen el mismo objetivo.</em>
+      </p>
+      <p class="team__caption">Tranquera es el punto de alineación.</p>
+
+      <div class="team__names">
+        <span>Christian</span>
+        <span>Federico</span>
+        <span>Mauricio</span>
+        <span>Jaime</span>
+        <span>Tomás</span>
+      </div>
+
+      <div class="team__handles">
+        @Christian-Rojas-Rodriguez · @fede-h · @5y5F4il · @Jjat00 · @tomileonel
+      </div>
+    </div>
+
+    <footer class="slide-footer">
+      <div class="brand">
+        <div class="brand__icon" aria-hidden="true">
+          <div class="brand__post brand__post--l"></div>
+          <div class="brand__post brand__post--r"></div>
+          <div class="brand__bar brand__bar--top"></div>
+          <div class="brand__bar brand__bar--bot"></div>
+        </div>
+        <span class="brand__name">tranquera</span>
+      </div>
+    </footer>
+  </section>
+
+  <!-- ============================================================
+       GRACIAS + QR
+       ============================================================ -->
+  <section class="slide" id="s-gracias" style="justify-content: center; align-items: center; gap: clamp(28px, 4vh, 48px);">
+    <div style="font-family:'IBM Plex Sans',system-ui,sans-serif; font-weight:700; font-size:clamp(72px, 12vw, 180px); letter-spacing:-0.04em; line-height:1; color:var(--paper); text-align:center;">
+      Gracias
+    </div>
+    <div style="display:flex; flex-direction:column; align-items:center; gap:16px;">
+      <div id="qr"></div>
+      <span style="font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--graphite); letter-spacing:0.04em;">tranquera.vercel.app</span>
+    </div>
+  </section>
+
+</div>
+
+<div class="hint">← → · pgup pgdn · 1—6</div>
+
+<script>
+  (function () {
+    var deck = document.getElementById("deck");
+    var slides = Array.prototype.slice.call(deck.querySelectorAll(".slide"));
+    var current = 0;
+
+    function goto(i) {
+      current = Math.max(0, Math.min(slides.length - 1, i));
+      slides[current].scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function syncCurrent() {
+      var idx = Math.round(deck.scrollTop / window.innerHeight);
+      if (idx !== current) current = idx;
+    }
+
+    document.addEventListener("keydown", function (e) {
+      var k = e.key;
+      if (k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === " ") {
+        e.preventDefault(); goto(current + 1);
+      } else if (k === "ArrowLeft" || k === "ArrowUp" || k === "PageUp") {
+        e.preventDefault(); goto(current - 1);
+      } else if (k === "Home") {
+        e.preventDefault(); goto(0);
+      } else if (k === "End") {
+        e.preventDefault(); goto(slides.length - 1);
+      } else if (/^[1-9]$/.test(k)) {
+        e.preventDefault(); goto(parseInt(k, 10) - 1);
+      }
+    });
+
+    deck.addEventListener("scroll", function () {
+      window.requestAnimationFrame(syncCurrent);
+    }, { passive: true });
+  })();
+
+  new QRCode(document.getElementById("qr"), {
+    text: "https://tranquera.vercel.app/",
+    width: 180,
+    height: 180,
+    colorDark: "#EFEDE6",
+    colorLight: "#1C1B18"
+  });
+</script>
+
+</body>
+</html>
