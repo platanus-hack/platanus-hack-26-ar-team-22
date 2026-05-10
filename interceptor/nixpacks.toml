@@ -13,4 +13,9 @@ cmds = [
 ]
 
 [start]
-cmd = "/app/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*"
+# Use `uv run` instead of an absolute venv path: nixpacks rewrites $PATH
+# to /opt/venv/bin (which doesn't exist when the venv lives at /app/.venv
+# per the install phase), so plain `uvicorn` and `/app/.venv/bin/uvicorn`
+# both broke. `uv run --frozen` resolves the project venv on its own and
+# is robust to nixpacks/uv layout drift.
+cmd = "uv run --frozen --no-dev uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips=*"
