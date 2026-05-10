@@ -6,11 +6,9 @@
 
 <p align="center"><em>Un paso controlado entre la intención y la respuesta.</em></p>
 
-**Tranquera** es el firewall de **Claude Code corporativo**. Cada empresa configura `ANTHROPIC_BASE_URL` apuntando a un proxy modificable que aplica reglas no-code en runtime — cascada **Regex → Pattern → Haiku judge** con menos de 200 ms de overhead — y devuelve cuatro acciones explícitas: `BLOCK · REDACT · WARN · LOG`. El compliance officer (no técnico) arma las reglas con un visual builder; el dev usa Claude Code igual que siempre; un AI Suggestor cierra el loop proponiendo reglas nuevas a partir de lo que está pasando bajo el radar.
+**Tranquera** resuelve el problema de **alineamiento organizacional de agentes AI**: Claude Code está alineado con los valores de Anthropic, pero no con las políticas de la empresa que lo despliega. Tranquera es la capa intermedia que cierra esa brecha — un proxy modificable que aplica reglas no-code en runtime con una cascada **Regex → Pattern → Haiku judge** de menos de 200 ms de overhead, con cuatro acciones explícitas: `BLOCK · REDACT · WARN · LOG`. El compliance officer (no técnico) especifica las políticas en lenguaje natural con un visual builder; el dev usa Claude Code igual que siempre; un AI Suggestor cierra el loop proponiendo nuevas reglas a partir de los patrones que están pasando bajo el radar.
 
-Pensado para empresas LATAM que dan Claude Code a sus devs y necesitan **evidencia auditable** frente a LGPD (Brasil), Habeas Data (Argentina), LFPDPPP (México) y la regulación IA emergente.
-
-— Track **AI Security** · Platanus Hack 26 · Buenos Aires · Team 22.
+— Track **AI Safety** · Platanus Hack 26 · Buenos Aires · Team 22.
 
 ---
 
@@ -72,22 +70,17 @@ Detalle completo y flag `--keep-rc` en [`cli/README.md`](./cli/README.md#cómo-m
 
 ## Por qué Tranquera
 
-Cuando una empresa pone Claude Code en las máquinas de sus devs, hoy cada prompt va directo a `api.anthropic.com`. Sin nada en el medio:
+El alineamiento de modelos de lenguaje resuelve el problema a nivel de entrenamiento: cómo lograr que el modelo no produzca respuestas dañinas o fuera de los valores del proveedor. Ese trabajo es fundamental. Pero hay una capa que los proveedores **no pueden resolver solos**: el alineamiento del agente con las políticas de cada organización que lo despliega.
+
+Cuando una empresa pone Claude Code en las máquinas de sus devs, el modelo está alineado con los valores de Anthropic, pero no sabe qué información es confidencial para esa empresa, qué datos son sensibles según las regulaciones locales, ni qué patrones de respuesta están fuera del marco del equipo de seguridad interno. El resultado es una **brecha de alineamiento organizacional**:
 
 - el dev pega sin querer una `AWS_SECRET_ACCESS_KEY`, un `id_rsa`, el contenido de un `.env`,
 - el dev pega un nombre de cliente, un path interno, un fragmento de código propietario,
-- nadie ve qué se mandó, ni puede mostrar evidencia cuando el regulador pregunta.
+- nadie ve qué se mandó, ni hay forma de mejorar el alineamiento porque no hay datos de lo que está pasando.
 
-Las soluciones existentes son extremos: o **bloqueás Claude Code completo** (y perdés productividad), o **lo dejás suelto** (y perdés trazabilidad). No hay un punto de control intermedio.
+Las soluciones existentes son extremos: o **bloqueás Claude Code completo** (y perdés productividad), o **lo dejás suelto** (y la brecha de alineamiento no se cierra nunca).
 
-Tranquera **no es un escudo ni una alarma**. Es una aduana silenciosa, siempre encendida, que aplica las reglas de la empresa **sin interrumpir el ritmo** de quien escribe y deja **rastro firmado** de cada decisión.
-
-```
-//  posicionamiento
-//  no se vende como "AI safety".
-//  se vende como control y trazabilidad.
-//  firewall de Claude Code corporativo.
-```
+Tranquera es una aduana silenciosa, siempre encendida, que aplica las reglas de la organización **sin interrumpir el ritmo** de quien escribe, deja **rastro auditable** de cada decisión y **aprende** de los patrones que pasan bajo el radar para cerrar la brecha de alineamiento de forma iterativa.
 
 ---
 
@@ -236,9 +229,11 @@ Cuando Claude Code arma su request, prepende `/v1/messages` a esa URL — el pat
 
 El onboarding del dev es **un comando**: `npx tranquera setup`. Hace el device flow contra el back-office (login con Google), guarda el token en `~/.tranquera/config.json` y escribe el `export` en el shell rc correcto (zsh, bash, fish).
 
-### 04 · AI Suggestor — de reactivo a proactivo
+### 04 · AI Suggestor — alineamiento iterativo
 
-Los primeros días el admin define las reglas obvias: las regex de credenciales, los paths conocidos. Pero los patrones reales de filtración aparecen agregados, mirando lo que los devs **realmente** escriben.
+Especificar todas las políticas relevantes upfront es imposible — los límites reales de la organización emergen de observar el comportamiento del agente en uso real. El Suggestor cierra ese ciclo: convierte los logs en especificaciones de alineamiento nuevas, con humano en el loop siempre.
+
+Los primeros días el admin define las reglas obvias: las regex de credenciales, los paths conocidos. Pero los patrones reales de la brecha aparecen agregados, mirando lo que los devs **realmente** escriben.
 
 El Suggestor (Layer 4) cierra ese loop:
 

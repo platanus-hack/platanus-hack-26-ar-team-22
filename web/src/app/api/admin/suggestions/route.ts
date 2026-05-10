@@ -12,12 +12,15 @@ export async function GET() {
       id: true,
       proposedSlug: true,
       proposedDomain: true,
+      proposedLayer: true,
       proposedRule: true,
+      proposedPattern: true,
       proposedAction: true,
       proposedSeverity: true,
       sourceHint: true,
       status: true,
       matchCount: true,
+      examples: true,
     },
   });
 

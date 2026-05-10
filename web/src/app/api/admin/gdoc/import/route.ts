@@ -6,23 +6,23 @@ import { requireAdminRole } from '@/lib/admin-session'
 
 const MAX_DOC_CHARS = 30_000
 
-const EXTRACTION_SYSTEM = `Sos un asistente que digitaliza políticas institucionales de documentos corporativos para que el equipo técnico las reciba como contexto mientras trabaja con un asistente AI. El objetivo no es bloquear sino informar: cada política que extraés se convierte en una regla que Tranquera puede compartir con el dev en el momento oportuno, ayudándolo a entregar el mejor trabajo posible dentro de los lineamientos de la empresa. Las políticas pueden cubrir cualquier área: tecnología, código, comunicación, cultura, objetivos estratégicos, seguridad, legal, o cualquier otra directiva que un dev deba tener presente. Respondé SOLO con JSON válido, sin markdown ni bloques de código.`
+const EXTRACTION_SYSTEM = `Sos un asistente que digitaliza políticas institucionales de documentos corporativos para que el equipo técnico las reciba como contexto mientras trabaja con un asistente AI. Tu trabajo es extraer TODAS las políticas que el documento mencione, sin importar si parecen técnicas, culturales, legales, comunicacionales o de cualquier otra índole. Si el documento dice que algo es una política, regla, lineamiento, directiva o restricción — la extraés, sin filtrar. Respondé SOLO con JSON válido, sin markdown ni bloques de código.`
 
-const EXTRACTION_USER = (text: string) => `Dado el siguiente documento corporativo, extraé todas las políticas institucionales relevantes para el equipo técnico.
+const EXTRACTION_USER = (text: string) => `Extraé TODAS las políticas, reglas, directivas o restricciones que mencione el siguiente documento. Tu criterio es maximalista: si el texto dice que "no se debe hacer X", "está prohibido Y", "la empresa requiere Z", o cualquier formulación similar — es una política y la incluís.
 
-El criterio de inclusión es amplio: incluí cualquier directiva, lineamiento, objetivo, restricción o buena práctica que un dev debería conocer al momento de escribir código, tomar decisiones técnicas o interactuar con un asistente AI. No te limitás a seguridad de datos — también son válidas reglas de arquitectura, estándares de código, objetivos de negocio, restricciones legales, normas de comunicación, valores culturales, etc.
+No filtrés por relevancia técnica. Una política cultural, de comunicación, de comportamiento, legal, de seguridad, de datos o de cualquier otro tipo — todas se incluyen. Si el documento explícitamente llama a algo "política", incluílo siempre.
 
 Para cada política encontrada, producí un objeto con:
-- slug: identificador snake_case corto y descriptivo (ej: "prefer_typescript", "no_cliente_data_en_prompts", "arquitectura_microservicios")
-- domain: el más apropiado de [credentials, pii, internal_paths, business_policy, code]
-- layer: "nl" para reglas en lenguaje natural (la mayoría), "regex" solo si el doc especifica un patrón exacto, "pattern" solo si refiere a tipos de archivo
-- rule: descripción en español rioplatense (1-2 oraciones) redactada como consejo útil para el dev, no como prohibición. Explicá qué se espera y por qué importa para el trabajo.
-- proposed_pattern: null, o regex string si layer='regex'
-- default_action: usá "WARN" en la gran mayoría de los casos — es el default para lineamientos, buenas prácticas y objetivos. "BLOCK" es la excepción extrema (restricción legal o de seguridad absolutamente indiscutible); si tenés dudas, usá "WARN". "REDACT" solo para datos sensibles estructurados que nunca deben salir. "LOG" para auditoría silenciosa sin interrumpir al dev.
-- severity: "high" para restricciones críticas o legales, "medium" para lineamientos importantes, "low" para buenas prácticas y recomendaciones
+- slug: identificador snake_case corto y descriptivo
+- domain: el más apropiado de [credentials, pii, internal_paths, business_policy, code] — cuando no encaje bien en ningún otro, usá "business_policy"
+- layer: "nl" para lenguaje natural (usá este por defecto), "regex" solo si hay un patrón exacto, "pattern" solo si refiere a tipos de archivo
+- rule: la política tal como está expresada en el documento, en español rioplatense, 1-2 oraciones
+- proposed_pattern: null (salvo que sea un regex literal)
+- default_action: "WARN" por defecto para casi todo; "BLOCK" solo para restricciones absolutas e indiscutibles; "REDACT" solo para datos sensibles estructurados; "LOG" para auditoría silenciosa
+- severity: "high" para restricciones críticas, "medium" para lineamientos importantes, "low" para recomendaciones
 
 Devolvé: { "policies": [ ...objetos... ] }
-Si el documento no contiene directivas aplicables al trabajo técnico: { "policies": [] }
+Solo devolvés { "policies": [] } si el documento literalmente no contiene ninguna regla, directiva o restricción de ningún tipo.
 
 Documento:
 ${text}`
@@ -104,6 +104,13 @@ export async function POST(request: NextRequest) {
     throw err
   }
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return Response.json(
+      { error: 'ANTHROPIC_API_KEY no configurada en el servidor. Contactá al administrador.' },
+      { status: 500 }
+    )
+  }
+
   const client = new Anthropic()
   let rawJson: string
   try {
@@ -116,7 +123,14 @@ export async function POST(request: NextRequest) {
     const block = msg.content[0]
     if (block.type !== 'text') throw new Error('unexpected_response_type')
     rawJson = block.text
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : ''
+    if (msg.includes('API key') || msg.includes('authentication') || msg.includes('auth_token')) {
+      return Response.json(
+        { error: 'Error de autenticación con la API de IA. Verificá que ANTHROPIC_API_KEY esté configurada.' },
+        { status: 500 }
+      )
+    }
     return Response.json(
       { error: 'Error al procesar el documento con IA. Intentá de nuevo.' },
       { status: 500 }

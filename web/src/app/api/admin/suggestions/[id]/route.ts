@@ -46,7 +46,7 @@ export async function POST(
         matchConfig: suggestion.proposedMatchConfig ?? undefined,
         defaultAction: suggestion.proposedAction,
         severity: suggestion.proposedSeverity,
-        source: "google_workspace",
+        source: suggestion.sourceHint === "google_workspace" ? "google_workspace" : "ai_suggestor",
         isActive: true,
       },
     });

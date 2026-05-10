@@ -1,5 +1,6 @@
 {
   "project-name": "Tranquera",
+  "project-description-spanish": "Tranquera es el firewall de Claude Code corporativo: una aduana silenciosa entre el dev y Anthropic. Cada request pasa por un proxy modificable que aplica reglas no-code en una cascada de tres capas (regex, patrones y juicio de Haiku) con menos de 200 ms de overhead. Compliance officers no técnicos arman las reglas con un visual builder y ven los eventos en tiempo real. Pensado para empresas LATAM que dan Claude Code a sus devs y necesitan evidencia auditable frente a LGPD, Habeas Data y la regulación IA emergente.",
   "project-oneliner-spanish": "Un paso controlado entre la intención y la respuesta.",
-  "project-description-spanish": "Tranquera es el firewall de Claude Code corporativo: una aduana silenciosa entre el dev y Anthropic. Cada request pasa por un proxy modificable que aplica reglas no-code en una cascada de tres capas (regex, patrones y juicio de Haiku) con menos de 200 ms de overhead. Compliance officers no técnicos arman las reglas con un visual builder y ven los eventos en tiempo real. Pensado para empresas LATAM que dan Claude Code a sus devs y necesitan evidencia auditable frente a LGPD, Habeas Data y la regulación IA emergente."
+  "deploy-url": "https://tranquera.vercel.app"
 }

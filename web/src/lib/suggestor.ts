@@ -135,6 +135,10 @@ export async function runSuggestor(
   const userMessage = `Analizá los siguientes ${analyzed} prompts enviados por devs a Claude Code. Todos pasaron con acción LOG (sin bloqueo ni redacción):\n\n${numberedPrompts}\n\nIdentificá patrones de seguridad y devolvé el JSON array según el schema.`;
 
   // 5. Call Claude Haiku with prompt caching on system block
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error("ANTHROPIC_API_KEY no configurada. Configurala en las variables de entorno del servidor.");
+  }
+
   const client = new Anthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
   });
