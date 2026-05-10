@@ -4,8 +4,6 @@
 import {
   ActionPill,
   Button,
-  EmptyState,
-  KvLine,
   SectionHeading,
   type Action,
 } from "@/components/ui";
@@ -14,6 +12,7 @@ import { Reveal, Stagger, StaggerItem } from "@/components/motion";
 import { CascadeDemo } from "./_components/cascade-demo";
 import { Hero } from "./_components/hero";
 import { SiteHeader, Wordmark } from "./_components/site-header";
+import { TraceDemo } from "./_components/trace-demo";
 
 const TEAM = [
   { name: "Christian Rojas Rodriguez", gh: "Christian-Rojas-Rodriguez" },
@@ -456,83 +455,9 @@ function TraceSection() {
             subtitle="Devolver un Message sintético en vez de un 403 no es casualidad. El dev entiende qué política aplica y cómo realinearse — sin ver un error de red, sin perder el contexto de trabajo."
           />
         </Reveal>
-        <Stagger gap={0.18} className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-          <StaggerItem>
-            <TraceCard
-              label="// request entrante"
-              theme="light"
-              body={
-                <>
-                  <KvLine k="POST" v="/v1/messages" />
-                  <KvLine k="x-api-key" v="sk-ant-…" />
-                  <KvLine k="anthropic-version" v="2023-06-01" />
-                  <div className="mt-4 break-words bg-paper-soft/60 p-3 font-mono text-xs leading-relaxed text-ink">
-                    {`{ "model": "claude-sonnet-4-6",
-  "messages": [{
-    "role": "user",
-    "content": "ayudame con AKIAIOSFODNN7EXAMPLE"
-  }] }`}
-                  </div>
-                </>
-              }
-            />
-          </StaggerItem>
-          <StaggerItem>
-            <TraceCard
-              label="// respuesta sintética · BLOCK"
-              theme="dark"
-              body={
-                <>
-                  <KvLine k="x-team22-trace-id" v="01HXYZK…" dark />
-                  <KvLine k="x-team22-action" v="BLOCK" dark />
-                  <KvLine k="stop_reason" v="team22_blocked" dark />
-                  <div className="mt-4 break-words border border-graphite-dark p-3 font-mono text-xs leading-relaxed text-paper">
-                    Tu prompt se alejó de la política{" "}
-                    <span className="text-paper underline underline-offset-2">
-                      aws-access-key
-                    </span>
-                    : detectamos un patrón de AWS Secret Access Key. Para
-                    trabajar con credenciales reales dentro del marco de la
-                    org, abrí un ticket con tu admin.
-                  </div>
-                  <div className="mt-3 flex items-center gap-3 font-mono text-[11px] text-graphite">
-                    <span>// total · 9ms</span>
-                    <span className="hairline h-3 w-px" />
-                    <span>// upstream · skipped</span>
-                  </div>
-                </>
-              }
-            />
-          </StaggerItem>
-        </Stagger>
+        <TraceDemo />
       </div>
     </section>
-  );
-}
-
-function TraceCard({
-  label,
-  theme,
-  body,
-}: {
-  label: string;
-  theme: "light" | "dark";
-  body: React.ReactNode;
-}) {
-  const base =
-    theme === "dark"
-      ? "bg-ink text-paper border border-graphite-dark"
-      : "bg-paper text-ink border border-graphite-dark/20";
-  return (
-    <article
-      className={`flex h-full flex-col gap-4 p-6 md:p-8 ${base}`}
-      style={{ borderRadius: "var(--radius)" }}
-    >
-      <span className="font-mono text-xs uppercase tracking-wider text-graphite">
-        {label}
-      </span>
-      <div className="flex flex-col gap-2">{body}</div>
-    </article>
   );
 }
 
