@@ -96,6 +96,11 @@ def _winning_hit(hits: list[PolicyHit], action: Action) -> PolicyHit | None:
     return next((h for h in hits if h.action == action), None)
 
 
+# Audit column has CHECK (length(prompt) < 50000); leave room for the
+# truncation suffix so we never trip the constraint after redaction.
+_MAX_STORED_PROMPT_LEN = 49_000
+
+
 def _flatten_prompt(req: MessagesRequest) -> str:
     """Concat all text blocks for storage. Redaction runs after this."""
     chunks: list[str] = []
@@ -109,6 +114,13 @@ def _flatten_prompt(req: MessagesRequest) -> str:
                 if b.get("type") == "text":
                     chunks.append(f"[{msg.role}] {b.get('text', '')}")
     return "\n".join(chunks)
+
+
+def _clip_for_storage(text: str) -> str:
+    if len(text) <= _MAX_STORED_PROMPT_LEN:
+        return text
+    dropped = len(text) - _MAX_STORED_PROMPT_LEN
+    return f"{text[:_MAX_STORED_PROMPT_LEN]}\n…[truncated {dropped} chars]"
 
 
 async def _persist_interaction(
@@ -131,7 +143,7 @@ async def _persist_interaction(
         org_id=org_id,
         user_id=user_id,
         request_model=request_model,
-        prompt=redact_for_storage(_flatten_prompt(parsed), hits),
+        prompt=_clip_for_storage(redact_for_storage(_flatten_prompt(parsed), hits)),
         action=action,
         reason=reason,
         policy_hits=[h.to_record() for h in hits],
