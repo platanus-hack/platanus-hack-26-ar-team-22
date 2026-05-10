@@ -36,6 +36,7 @@ Layer 1: Claude Code (cliente)                                  │
 | 06 | Pitch & Demo | [06-pitch-demo.md](./06-pitch-demo.md) | draft (script y runbook a escribir antes del pitch) |
 | 07 | Requirements & Docs técnicos | [07-requirements-docs.md](./07-requirements-docs.md) | draft |
 | 08 | AI Suggestor (Layer 4) | [08-ai-suggestor.md](./08-ai-suggestor.md) | draft (gdoc-import landed como variante) |
+| 11 | Policy Packs (plantillas curadas) | [11-policy-packs.md](./11-policy-packs.md) | backlog (idea, sin tasks) |
 
 > El antiguo spec `05-user-web.md` (playground multi-rol) fue retirado el 2026-05-09. El "user" final del producto es el dev que usa Claude Code real, no un playground separado.
 
